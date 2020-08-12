@@ -16,10 +16,11 @@
 
 #include "cyber/transport/dispatcher/rtps_dispatcher.h"
 
-#include <gtest/gtest.h>
 #include <memory>
+#include "gtest/gtest.h"
 
 #include "cyber/common/util.h"
+#include "cyber/init.h"
 #include "cyber/proto/unit_test.pb.h"
 #include "cyber/transport/common/identity.h"
 #include "cyber/transport/qos/qos_profile_conf.h"
@@ -104,6 +105,7 @@ TEST(RtpsDispatcherTest, shutdown) {
 
 int main(int argc, char** argv) {
   testing::InitGoogleTest(&argc, argv);
+  apollo::cyber::Init(argv[0]);
   apollo::cyber::transport::Transport::Instance();
   auto res = RUN_ALL_TESTS();
   apollo::cyber::transport::Transport::Instance()->Shutdown();

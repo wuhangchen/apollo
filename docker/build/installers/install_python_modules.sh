@@ -20,18 +20,11 @@
 set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
+. /tmp/installers/installer_base.sh
 
-apt-get -y update && \
-  apt-get install -y \
-    libgeos-dev \
-    python-matplotlib \
-    python-pip \
-    python-psutil \
-    python-scipy \
-    python-software-properties \
-    python3-psutil
+apt_get_update_and_install libgeos-dev
+pip3_install -r py3_requirements.txt
 
-pip install -r py27_requirements.txt
-
-# Clean up.
-apt-get clean && rm -rf /var/lib/apt/lists/*
+# Clean up cache to reduce layer size.
+apt-get clean && \
+    rm -rf /var/lib/apt/lists/*

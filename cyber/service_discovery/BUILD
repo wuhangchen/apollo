@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -21,7 +22,7 @@ cc_test(
     srcs = ["topology_manager_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -60,7 +61,7 @@ cc_test(
     srcs = ["container/graph_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -74,6 +75,16 @@ cc_library(
     ],
 )
 
+cc_test(
+    name = "multi_value_warehouse_test",
+    size = "small",
+    srcs = ["container/multi_value_warehouse_test.cc"],
+    deps = [
+        ":multi_value_warehouse",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
 cc_library(
     name = "single_value_warehouse",
     srcs = ["container/single_value_warehouse.cc"],
@@ -81,6 +92,16 @@ cc_library(
     deps = [
         ":warehouse_base",
         "//cyber/base:atomic_rw_lock",
+    ],
+)
+
+cc_test(
+    name = "single_value_warehouse_test",
+    size = "small",
+    srcs = ["container/single_value_warehouse_test.cc"],
+    deps = [
+        ":single_value_warehouse",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -108,7 +129,7 @@ cc_test(
     srcs = ["role/role_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -151,7 +172,7 @@ cc_test(
     deps = [
         "//cyber",
         "//cyber/proto:unit_test_cc_proto",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -172,7 +193,7 @@ cc_test(
     srcs = ["specific_manager/node_manager_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
@@ -193,7 +214,7 @@ cc_test(
     srcs = ["specific_manager/service_manager_test.cc"],
     deps = [
         "//cyber",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 

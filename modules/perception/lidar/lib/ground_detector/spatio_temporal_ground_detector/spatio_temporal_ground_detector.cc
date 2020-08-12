@@ -33,13 +33,13 @@ bool SpatioTemporalGroundDetector::Init(
     const GroundDetectorInitOptions& options) {
   const lib::ModelConfig* model_config = nullptr;
   auto config_manager = lib::ConfigManager::Instance();
-  CHECK(config_manager->GetModelConfig("SpatioTemporalGroundDetector",
-                                       &model_config))
+  ACHECK(config_manager->GetModelConfig("SpatioTemporalGroundDetector",
+                                        &model_config))
       << "Failed to get model config: SpatioTemporalGroundDetector";
 
   const std::string& work_root = config_manager->work_root();
   std::string root_path;
-  CHECK(model_config->get_value("root_path", &root_path))
+  ACHECK(model_config->get_value("root_path", &root_path))
       << "Failed to get value of root_path.";
   std::string config_file;
   config_file = apollo::cyber::common::GetAbsolutePath(work_root, root_path);
@@ -48,7 +48,7 @@ bool SpatioTemporalGroundDetector::Init(
 
   // get config params
   SpatioTemporalGroundDetectorConfig config_params;
-  CHECK(GetProtoFromFile(config_file, &config_params))
+  ACHECK(GetProtoFromFile(config_file, &config_params))
       << "Failed to parse SpatioTemporalGroundDetectorConfig config file.";
   ground_thres_ = config_params.ground_thres();
   use_roi_ = config_params.use_roi();
@@ -116,6 +116,10 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
   } else {
     num_points = frame->world_cloud->size();
   }
+
+  ADEBUG << "spatial temporal seg: use roi " << use_roi_ << " num points "
+         << num_points;
+
   // reallocate memory if points num > the preallocated size
   num_points_all = num_points;
 
@@ -150,11 +154,11 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
 
   CHECK_EQ(data_id, valid_point_num * 3);
   base::PointIndices& non_ground_indices = frame->non_ground_indices;
-  AINFO << "input of ground detector:" << valid_point_num;
+  ADEBUG << "input of ground detector:" << valid_point_num;
 
   if (!pfdetector_->Detect(data_.data(), ground_height_signed_.data(),
                            valid_point_num, nr_points_element)) {
-    AINFO << "failed to call ground detector!";
+    ADEBUG << "failed to call ground detector!";
     non_ground_indices.indices.insert(
         non_ground_indices.indices.end(), point_indices_temp_.begin(),
         point_indices_temp_.begin() + valid_point_num);
@@ -176,7 +180,8 @@ bool SpatioTemporalGroundDetector::Detect(const GroundDetectorOptions& options,
           static_cast<uint8_t>(LidarPointLabel::GROUND);
     }
   }
-  AINFO << "succeed to call ground detector!";
+  AINFO << "succeed to call ground detector with non ground points "
+        << non_ground_indices.indices.size();
 
   if (use_ground_service_) {
     auto ground_service = SceneManager::Instance().Service("GroundService");

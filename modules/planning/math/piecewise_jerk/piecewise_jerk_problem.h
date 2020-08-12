@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include "osqp/include/osqp.h"
+#include "osqp/osqp.h"
 
 namespace apollo {
 namespace planning {
@@ -66,7 +66,15 @@ class PiecewiseJerkProblem {
   void set_ddx_bounds(const double ddx_lower_bound,
                       const double ddx_upper_bound);
 
-  void set_dddx_bound(const double dddx_bound) { dddx_bound_ = dddx_bound; }
+  void set_dddx_bound(const double dddx_bound) {
+    set_dddx_bound(-dddx_bound, dddx_bound);
+  }
+
+  void set_dddx_bound(const double dddx_lower_bound,
+                      const double dddx_upper_bound) {
+    dddx_bound_.first = dddx_lower_bound;
+    dddx_bound_.second = dddx_upper_bound;
+  }
 
   void set_weight_x(const double weight_x) { weight_x_ = weight_x; }
 
@@ -75,6 +83,30 @@ class PiecewiseJerkProblem {
   void set_weight_ddx(const double weight_ddx) { weight_ddx_ = weight_ddx; }
 
   void set_weight_dddx(const double weight_dddx) { weight_dddx_ = weight_dddx; }
+
+  void set_scale_factor(const std::array<double, 3>& scale_factor) {
+    scale_factor_ = scale_factor;
+  }
+
+  /**
+   * @brief Set the x ref object and the uniform x_ref weighting
+   *
+   * @param weight_x_ref: uniform weighting for x_ref
+   * @param x_ref: objective value of x
+   */
+  void set_x_ref(const double weight_x_ref, std::vector<double> x_ref);
+
+  /**
+   * @brief Set the x ref object and piecewised x_ref weightings
+   *
+   * @param weight_x_ref_vec: piecewised x_ref weightings
+   * @param x_ref: objective value of x
+   */
+  void set_x_ref(std::vector<double> weight_x_ref_vec,
+                 std::vector<double> x_ref);
+
+  void set_end_state_ref(const std::array<double, 3>& weight_end_state,
+                         const std::array<double, 3>& end_state_ref);
 
   virtual bool Optimize(const int max_iter = 4000);
 
@@ -98,15 +130,18 @@ class PiecewiseJerkProblem {
                                          std::vector<c_float>* lower_bounds,
                                          std::vector<c_float>* upper_bounds);
 
-  bool OptimizeWithOsqp(
-      const size_t kernel_dim, const size_t num_affine_constraint,
-      std::vector<c_float>& P_data, std::vector<c_int>& P_indices,    // NOLINT
-      std::vector<c_int>& P_indptr, std::vector<c_float>& A_data,     // NOLINT
-      std::vector<c_int>& A_indices, std::vector<c_int>& A_indptr,    // NOLINT
-      std::vector<c_float>& lower_bounds,                             // NOLINT
-      std::vector<c_float>& upper_bounds,                             // NOLINT
-      std::vector<c_float>& q, OSQPData* data, OSQPWorkspace** work,  // NOLINT
-      OSQPSettings* settings);
+  virtual OSQPSettings* SolverDefaultSettings();
+
+  OSQPData* FormulateProblem();
+
+  void FreeData(OSQPData* data);
+
+  template <typename T>
+  T* CopyData(const std::vector<T>& vec) {
+    T* data = new T[vec.size()];
+    memcpy(data, vec.data(), sizeof(T) * vec.size());
+    return data;
+  }
 
  protected:
   size_t num_of_knots_ = 0;
@@ -117,11 +152,12 @@ class PiecewiseJerkProblem {
   std::vector<double> ddx_;
 
   std::array<double, 3> x_init_;
+  std::array<double, 3> scale_factor_ = {{1.0, 1.0, 1.0}};
 
   std::vector<std::pair<double, double>> x_bounds_;
   std::vector<std::pair<double, double>> dx_bounds_;
   std::vector<std::pair<double, double>> ddx_bounds_;
-  double dddx_bound_ = 0.0;
+  std::pair<double, double> dddx_bound_;
 
   double weight_x_ = 0.0;
   double weight_dx_ = 0.0;
@@ -129,6 +165,16 @@ class PiecewiseJerkProblem {
   double weight_dddx_ = 0.0;
 
   double delta_s_ = 1.0;
+
+  bool has_x_ref_ = false;
+  double weight_x_ref_ = 0.0;
+  std::vector<double> x_ref_;
+  // un-uniformed weighting
+  std::vector<double> weight_x_ref_vec_;
+
+  bool has_end_state_ref_ = false;
+  std::array<double, 3> weight_end_state_ = {{0.0, 0.0, 0.0}};
+  std::array<double, 3> end_state_ref_;
 };
 
 }  // namespace planning

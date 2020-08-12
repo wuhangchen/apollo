@@ -36,7 +36,7 @@ constexpr uint32_t kMinLaneLineLengthForCIPV = 2;
 // Average width of lane
 constexpr float kAverageLaneWidthInMeter = 3.7f;
 // Maximum vehicle width
-constexpr float kMaxVehicleWidthInMeter = 2.5f;
+constexpr float kMaxVehicleWidthInMeter = 1.87f;
 // Margin from a virtual car lane to actual lane
 constexpr float kMarginVehicleToLane =
     (kAverageLaneWidthInMeter - kMaxVehicleWidthInMeter) / 2.0f;
@@ -53,9 +53,7 @@ typedef Eigen::Vector2d Point2Dd;
 
 // This should be from lane detector
 struct LaneLineSimple {
-  LaneLineSimple() {
-    line_point.reserve(100);
-  }
+  LaneLineSimple() { line_point.reserve(100); }
   int type;   // solid, broken, double, zigzag, boundary, implicit
   int color;  // yellow, white
   //    eastl::fixed_vector<Point2Df, MAX_LANE_LINE_POINT> line_point;

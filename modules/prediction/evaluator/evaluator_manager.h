@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "cyber/common/macros.h"
+#include "modules/prediction/common/semantic_map.h"
 #include "modules/prediction/evaluator/evaluator.h"
 #include "modules/prediction/proto/prediction_conf.pb.h"
 
@@ -40,6 +41,11 @@ namespace prediction {
 
 class EvaluatorManager {
  public:
+  /**
+   * @brief Constructor
+   */
+  EvaluatorManager();
+
   /**
    * @brief Destructor
    */
@@ -60,16 +66,20 @@ class EvaluatorManager {
   /**
    * @brief Run evaluators
    */
-  void Run();
+  void Run(ObstaclesContainer* obstacles_container);
 
-  void EvaluateObstacle(Obstacle* obstacle, std::vector<Obstacle*> dynamic_env);
+  void EvaluateObstacle(Obstacle* obstacle,
+                        ObstaclesContainer* obstacles_container,
+                        std::vector<Obstacle*> dynamic_env);
 
-  void EvaluateObstacle(Obstacle* obstacle);
+  void EvaluateObstacle(Obstacle* obstacle,
+                        ObstaclesContainer* obstacles_container);
 
  private:
-  void BuildObstacleIdHistoryMap();
+  void BuildObstacleIdHistoryMap(ObstaclesContainer* obstacles_container,
+                                 size_t max_num_frame);
 
-  void DumpCurrentFrameEnv();
+  void DumpCurrentFrameEnv(ObstaclesContainer* obstacles_container);
 
   /**
    * @brief Register an evaluator by type
@@ -96,21 +106,30 @@ class EvaluatorManager {
   ObstacleConf::EvaluatorType vehicle_on_lane_evaluator_ =
       ObstacleConf::CRUISE_MLP_EVALUATOR;
 
+  ObstacleConf::EvaluatorType vehicle_on_lane_caution_evaluator_ =
+      ObstacleConf::CRUISE_MLP_EVALUATOR;
+
   ObstacleConf::EvaluatorType vehicle_in_junction_evaluator_ =
       ObstacleConf::JUNCTION_MLP_EVALUATOR;
+
+  ObstacleConf::EvaluatorType vehicle_in_junction_caution_evaluator_ =
+      ObstacleConf::JUNCTION_MAP_EVALUATOR;
+
+  ObstacleConf::EvaluatorType vehicle_default_caution_evaluator_ =
+      ObstacleConf::SEMANTIC_LSTM_EVALUATOR;
 
   ObstacleConf::EvaluatorType cyclist_on_lane_evaluator_ =
       ObstacleConf::CYCLIST_KEEP_LANE_EVALUATOR;
 
   ObstacleConf::EvaluatorType pedestrian_evaluator_ =
-      ObstacleConf::PEDESTRIAN_INTERACTION_EVALUATOR;
+      ObstacleConf::SEMANTIC_LSTM_EVALUATOR;
 
   ObstacleConf::EvaluatorType default_on_lane_evaluator_ =
       ObstacleConf::MLP_EVALUATOR;
 
   std::unordered_map<int, ObstacleHistory> obstacle_id_history_map_;
 
-  DECLARE_SINGLETON(EvaluatorManager)
+  std::unique_ptr<SemanticMap> semantic_map_;
 };
 
 }  // namespace prediction

@@ -22,7 +22,6 @@
 
 #include <algorithm>
 #include <memory>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -30,6 +29,7 @@
 #include "modules/common/configs/proto/vehicle_config.pb.h"
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/math/vec2d.h"
+#include "modules/planning/common/dependency_injector.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/obstacle.h"
 #include "modules/planning/common/planning_gflags.h"
@@ -41,7 +41,8 @@ namespace apollo {
 namespace planning {
 class OpenSpaceFallbackDecider : public Decider {
  public:
-  explicit OpenSpaceFallbackDecider(const TaskConfig& config);
+  OpenSpaceFallbackDecider(const TaskConfig& config,
+                           const std::shared_ptr<DependencyInjector>& injector);
 
  private:
   apollo::common::Status Process(Frame* frame) override;

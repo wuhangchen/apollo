@@ -15,7 +15,7 @@
  *****************************************************************************/
 #include "modules/monitor/monitor.h"
 
-#include "modules/common/time/time.h"
+#include "cyber/time/clock.h"
 #include "modules/monitor/common/monitor_manager.h"
 #include "modules/monitor/hardware/esdcan_monitor.h"
 #include "modules/monitor/hardware/gps_monitor.h"
@@ -23,8 +23,11 @@
 #include "modules/monitor/hardware/socket_can_monitor.h"
 #include "modules/monitor/software/channel_monitor.h"
 #include "modules/monitor/software/functional_safety_monitor.h"
+#include "modules/monitor/software/latency_monitor.h"
 #include "modules/monitor/software/localization_monitor.h"
+#include "modules/monitor/software/module_monitor.h"
 #include "modules/monitor/software/process_monitor.h"
+#include "modules/monitor/software/recorder_monitor.h"
 #include "modules/monitor/software/summary_monitor.h"
 
 DEFINE_bool(enable_functional_safety, true,
@@ -47,8 +50,13 @@ bool Monitor::Init() {
   runners_.emplace_back(new LocalizationMonitor());
   // Monitor if processes are running.
   runners_.emplace_back(new ProcessMonitor());
+  // Monitor if modules are running.
+  runners_.emplace_back(new ModuleMonitor());
+  // Monitor message processing latencies across modules
+  const std::shared_ptr<LatencyMonitor> latency_monitor(new LatencyMonitor());
+  runners_.emplace_back(latency_monitor);
   // Monitor if channel messages are updated in time.
-  runners_.emplace_back(new ChannelMonitor());
+  runners_.emplace_back(new ChannelMonitor(latency_monitor));
   // Monitor if resources are sufficient.
   runners_.emplace_back(new ResourceMonitor());
 
@@ -64,7 +72,7 @@ bool Monitor::Init() {
 }
 
 bool Monitor::Proc() {
-  const double current_time = apollo::common::time::Clock::NowInSeconds();
+  const double current_time = apollo::cyber::Clock::NowInSeconds();
   if (!MonitorManager::Instance()->StartFrame(current_time)) {
     return false;
   }

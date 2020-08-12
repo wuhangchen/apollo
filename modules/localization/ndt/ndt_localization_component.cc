@@ -16,22 +16,21 @@
 
 #include "modules/localization/ndt/ndt_localization_component.h"
 
+#include "cyber/time/clock.h"
 #include "modules/common/adapters/adapter_gflags.h"
 #include "modules/common/math/quaternion.h"
-#include "modules/common/time/time.h"
 #include "modules/localization/common/localization_gflags.h"
 
 namespace apollo {
 namespace localization {
 namespace ndt {
 
-using apollo::common::time::Clock;
+using apollo::cyber::Clock;
 
 NDTLocalizationComponent::NDTLocalizationComponent()
     : localization_(new NDTLocalization()) {}
 
 bool NDTLocalizationComponent::Init() {
-  Clock::SetMode(Clock::CYBER);
   tf2_broadcaster_.reset(new apollo::transform::TransformBroadcaster(node_));
   if (!InitConfig()) {
     AERROR << "Init Config false.";

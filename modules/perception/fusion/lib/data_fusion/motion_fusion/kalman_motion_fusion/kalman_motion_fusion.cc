@@ -17,10 +17,15 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <limits>
 
 #include "modules/perception/base/sensor_meta.h"
 #include "modules/perception/common/geometry/basic.h"
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
+
+namespace {
+constexpr double kDoubleEpsilon = std::numeric_limits<double>::epsilon();
+}
 
 namespace apollo {
 namespace perception {
@@ -181,7 +186,7 @@ void KalmanMotionFusion::UpdateWithMeasurement(
     if (filter_init_) {
       if (lidar_ptr != nullptr) {
         // measurement is camera, has history lidar
-        // use fused postion, use fused velocity
+        // use fused position, use fused velocity
         fused_anchor_point_(0) = kalman_filter_.GetStates()(0);
         fused_anchor_point_(1) = kalman_filter_.GetStates()(1);
         fused_velocity_(0) = kalman_filter_.GetStates()(2);
@@ -330,6 +335,10 @@ void KalmanMotionFusion::MotionFusionWithMeasurement(
 
 void KalmanMotionFusion::UpdateMotionState() {
   base::ObjectPtr obj = track_ref_->GetFusedObject()->GetBaseObject();
+  obj->anchor_point = fused_anchor_point_.cast<double>();
+  // it seems that it is the only place to update the FusedObject's `center`
+  // who will be used in CollectFusedObjects
+  obj->center = obj->anchor_point;
   obj->velocity = fused_velocity_.cast<float>();
   obj->acceleration = fused_acceleration_.cast<float>();
   // Previously, obj velocity uncertainty would be updated according to the
@@ -356,7 +365,7 @@ Eigen::VectorXd KalmanMotionFusion::ComputeAccelerationMeasurement(
   }
   if (GetSensorHistoryLength(sensor_type) >= s_eval_window_) {
     size_t history_index = GetSensorHistoryIndex(sensor_type, s_eval_window_);
-    if (history_index < 0 || history_index >= history_velocity_.size()) {
+    if (history_index >= history_velocity_.size()) {
       AERROR << "illegal history index";
       return Eigen::Vector3d::Zero();
     }
@@ -432,7 +441,7 @@ Eigen::Vector4d KalmanMotionFusion::ComputePseudoLidarMeasurement(
   fused_acceleration(1) = kalman_filter_.GetStates()(5);
   // Return if lidar velocity is already small enough
   double lidar_velocity_norm = lidar_velocity.norm();
-  if (lidar_velocity_norm < DBL_EPSILON) {
+  if (lidar_velocity_norm < kDoubleEpsilon) {
     return pseudo_measurement;
   }
   // Trace back radar velocity history, try to find good radar measurement
@@ -507,7 +516,7 @@ Eigen::Vector4d KalmanMotionFusion::ComputePseudoCameraMeasurement(
   fused_acceleration(1) = kalman_filter_.GetStates()(5);
   // Return if camera velocity is already small enough
   double camera_velocity_norm = camera_velocity.norm();
-  if (camera_velocity_norm < DBL_EPSILON) {
+  if (camera_velocity_norm < kDoubleEpsilon) {
     return pseudo_measurement;
   }
   // Trace back radar velocity history, try to find good radar measurement
@@ -607,7 +616,7 @@ Eigen::Vector4d KalmanMotionFusion::ComputePseudoRadarMeasurement(
     }
     Eigen::Vector3d history_velocity = history_velocity_[history_index];
     // Abandon history measurement, if its speed is too small
-    if (history_velocity.norm() < DBL_EPSILON) {
+    if (history_velocity.norm() < kDoubleEpsilon) {
       pseudo_measurement(2) = history_velocity(0);
       pseudo_measurement(3) = history_velocity(1);
       return pseudo_measurement;

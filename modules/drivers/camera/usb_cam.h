@@ -41,8 +41,10 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 
+#ifndef __aarch64__
 #include <immintrin.h>
 #include <x86intrin.h>
+#endif
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -129,6 +131,12 @@ class UsbCam {
   int init_mjpeg_decoder(int image_width, int image_height);
   void mjpeg2rgb(char* mjepg_buffer, int len, char* rgb_buffer, int pixels);
 
+#ifdef __aarch64__
+  int convert_yuv_to_rgb_pixel(int y, int u, int v);
+  int convert_yuv_to_rgb_buffer(unsigned char* yuv, unsigned char* rgb,
+                                unsigned int width, unsigned int height);
+#endif
+
   bool init_read(unsigned int buffer_size);
   bool init_mmap(void);
   bool init_userp(unsigned int buffer_size);
@@ -136,7 +144,7 @@ class UsbCam {
   bool close_device(void);
   bool open_device(void);
   bool read_frame(CameraImagePtr raw_image);
-  bool process_image(const void* src, int len, CameraImagePtr dest);
+  bool process_image(void* src, int len, CameraImagePtr dest);
   bool start_capturing(void);
   bool stop_capturing(void);
   void reconnect();

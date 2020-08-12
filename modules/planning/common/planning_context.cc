@@ -16,26 +16,12 @@
 
 #include "modules/planning/common/planning_context.h"
 
-#include "modules/planning/common/planning_gflags.h"
-
 namespace apollo {
 namespace planning {
 
-// PlanningContext::PlanningStatus PlanningContext::planning_status_;
-// PlanningContext::SidePassInfo PlanningContext::side_pass_info_;
-// PlanningContext::FallBackInfo PlanningContext::fallback_info_;
-// PlanningContext::OpenSpaceInfo PlanningContext::open_space_info_;
-
-PlanningContext::PlanningContext() {}
-
 void PlanningContext::Init() {}
 
-void PlanningContext::Clear() {
-  planning_status_.Clear();
-  side_pass_info_ = {};
-  fallback_info_ = {};
-  open_space_info_ = {};
-}
+void PlanningContext::Clear() { planning_status_.Clear(); }
 
 }  // namespace planning
 }  // namespace apollo

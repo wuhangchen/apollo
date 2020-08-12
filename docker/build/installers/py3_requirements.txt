@@ -1,0 +1,36 @@
+# system utils
+supervisor
+psutil
+
+# Google infras
+absl-py
+glog
+grpcio-tools
+protobuf
+python-gflags
+
+# Web
+flask
+flask-cors
+requests
+simplejson
+
+# Python tools
+pyproj
+shapely
+matplotlib
+
+# Driver
+pyusb
+
+# Data format
+h5py
+utm
+
+# Learning
+opencv-python
+numpy
+scipy
+
+# Libtorch-gpu dependency
+mkl

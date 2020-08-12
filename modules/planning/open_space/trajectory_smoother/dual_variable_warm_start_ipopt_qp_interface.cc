@@ -41,10 +41,10 @@ DualVariableWarmStartIPOPTQPInterface::DualVariableWarmStartIPOPTQPInterface(
       obstacles_A_(obstacles_A),
       obstacles_b_(obstacles_b),
       xWS_(xWS) {
-  CHECK(horizon < std::numeric_limits<int>::max())
+  ACHECK(horizon < std::numeric_limits<int>::max())
       << "Invalid cast on horizon in open space planner";
   horizon_ = static_cast<int>(horizon);
-  CHECK(obstacles_num < std::numeric_limits<int>::max())
+  ACHECK(obstacles_num < std::numeric_limits<int>::max())
       << "Invalid cast on obstacles_num in open space planner";
   obstacles_num_ = static_cast<int>(obstacles_num);
   w_ev_ = ego_(1, 0) + ego_(3, 0);
@@ -56,8 +56,9 @@ DualVariableWarmStartIPOPTQPInterface::DualVariableWarmStartIPOPTQPInterface(
   n_start_index_ = l_start_index_ + obstacles_edges_sum_ * (horizon_ + 1);
   l_warm_up_ = Eigen::MatrixXd::Zero(obstacles_edges_sum_, horizon_ + 1);
   n_warm_up_ = Eigen::MatrixXd::Zero(4 * obstacles_num_, horizon_ + 1);
-  weight_d_ =
-      planner_open_space_config.dual_variable_warm_start_config().weight_d();
+  min_safety_distance_ =
+      planner_open_space_config.dual_variable_warm_start_config()
+          .min_safety_distance();
 }
 
 bool DualVariableWarmStartIPOPTQPInterface::get_nlp_info(
@@ -100,9 +101,9 @@ bool DualVariableWarmStartIPOPTQPInterface::get_starting_point(
     int n, bool init_x, double* x, bool init_z, double* z_L, double* z_U, int m,
     bool init_lambda, double* lambda) {
   ADEBUG << "get_starting_point";
-  CHECK(init_x) << "Warm start init_x setting failed";
-  CHECK(!init_z) << "Warm start init_z setting failed";
-  CHECK(!init_lambda) << "Warm start init_lambda setting failed";
+  ACHECK(init_x) << "Warm start init_x setting failed";
+  ACHECK(!init_z) << "Warm start init_z setting failed";
+  ACHECK(!init_lambda) << "Warm start init_lambda setting failed";
 
   int l_index = l_start_index_;
   int n_index = n_start_index_;
@@ -165,7 +166,7 @@ bool DualVariableWarmStartIPOPTQPInterface::get_bounds_info(int n, double* x_l,
       g_u[constraint_index + 1] = 0.0;
 
       // b. (-g'*mu + (A*t - b)*lambda) >= 0
-      g_l[constraint_index + 2] = 0.0;
+      g_l[constraint_index + 2] = min_safety_distance_;
       g_u[constraint_index + 2] = 2e19;
       constraint_index += 3;
     }
@@ -463,8 +464,9 @@ bool DualVariableWarmStartIPOPTQPInterface::eval_h(
     // return the values. This is a symmetric matrix, fill the lower left
     // triangle only
     obj_lam[0] = obj_factor;
-    for (int idx = 0; idx < m; idx++) obj_lam[1 + idx] = lambda[idx];
-
+    for (int idx = 0; idx < m; idx++) {
+      obj_lam[1 + idx] = lambda[idx];
+    }
     set_param_vec(tag_L, m + 1, obj_lam);
     sparse_hess(tag_L, n, 1, const_cast<double*>(x), &nnz_L, &rind_L, &cind_L,
                 &hessval, options_L);
@@ -513,6 +515,96 @@ void DualVariableWarmStartIPOPTQPInterface::get_optimization_results(
     Eigen::MatrixXd* l_warm_up, Eigen::MatrixXd* n_warm_up) const {
   *l_warm_up = l_warm_up_;
   *n_warm_up = n_warm_up_;
+}
+
+void DualVariableWarmStartIPOPTQPInterface::check_solution(
+    const Eigen::MatrixXd& l_warm_up, const Eigen::MatrixXd& n_warm_up) {
+  // wrap input solution
+  int kNumVariables = num_of_variables_;
+  double x[kNumVariables];
+  int variable_index = 0;
+  // 1. lagrange constraint l, [0, obstacles_edges_sum_ - 1] * [0,
+  // horizon_]
+  for (int i = 0; i < horizon_ + 1; ++i) {
+    for (int j = 0; j < obstacles_edges_sum_; ++j) {
+      x[variable_index] = l_warm_up(j, i);
+      ++variable_index;
+    }
+  }
+
+  // 2. lagrange constraint n, [0, 4*obstacles_num-1] * [0, horizon_]
+  for (int i = 0; i < horizon_ + 1; ++i) {
+    for (int j = 0; j < 4 * obstacles_num_; ++j) {
+      x[variable_index] = n_warm_up(j, i);
+      ++variable_index;
+    }
+  }
+
+  // evaluate constraints
+  int kNumConstraint = num_of_constraints_;
+  double g[kNumConstraint];
+  eval_g(num_of_variables_, x, true, num_of_constraints_, g);
+
+  // get the boundaries
+  double x_l[kNumVariables];
+  double x_u[kNumVariables];
+  double g_l[kNumConstraint];
+  double g_u[kNumConstraint];
+  get_bounds_info(num_of_variables_, x_l, x_u, num_of_constraints_, g_l, g_u);
+
+  // compare g with g_l & g_u
+  int constraint_index = 0;
+
+  for (int i = 0; i < horizon_ + 1; ++i) {
+    for (int j = 0; j < obstacles_num_; ++j) {
+      // G' * mu + R' * A * lambda == 0
+      if (g_l[constraint_index + 0] > g[constraint_index + 0] ||
+          g_u[constraint_index + 0] < g[constraint_index + 0]) {
+        AERROR << "G' * mu + R' * A * lambda == 0 constraint fails, "
+               << "constraint_index: " << constraint_index + 0
+               << ", g: " << g[constraint_index + 0];
+      }
+
+      if (g_l[constraint_index + 1] > g[constraint_index + 1] ||
+          g_u[constraint_index + 1] < g[constraint_index + 1]) {
+        AERROR << "G' * mu + R' * A * lambda == 0 constraint fails, "
+               << "constraint_index: " << constraint_index + 1
+               << ", g: " << g[constraint_index + 1];
+      }
+
+      // -g' * mu + (A * t - b) * lambda) >= d_min
+      if (g_l[constraint_index + 2] > g[constraint_index + 2] ||
+          g_u[constraint_index + 2] < g[constraint_index + 2]) {
+        AERROR << "-g' * mu + (A * t - b) * lambda) >= d_min constraint fails, "
+               << "constraint_index: " << constraint_index + 2
+               << ", g: " << g[constraint_index + 2];
+      }
+
+      // Update index
+      constraint_index += 3;
+    }
+  }
+
+  for (int i = 0; i < lambda_horizon_; ++i) {
+    if (g_l[constraint_index] > g[constraint_index] ||
+        g_u[constraint_index] < g[constraint_index]) {
+      AERROR << "lambda box constraint fails, "
+             << "constraint_index: " << constraint_index
+             << ", g: " << g[constraint_index];
+    }
+
+    constraint_index++;
+  }
+
+  for (int i = 0; i < miu_horizon_; ++i) {
+    if (g_l[constraint_index] > g[constraint_index] ||
+        g_u[constraint_index] < g[constraint_index]) {
+      AERROR << "miu box constraint fails, "
+             << "constraint_index: " << constraint_index
+             << ", g: " << g[constraint_index];
+    }
+    constraint_index++;
+  }
 }
 
 //***************    start ADOL-C part ***********************************
@@ -590,7 +682,7 @@ bool DualVariableWarmStartIPOPTQPInterface::eval_constraints(int n, const T* x,
       g[constraint_index + 1] = x[n_index + 1] - x[n_index + 3] -
                                 sin(xWS_(2, i)) * tmp1 + cos(xWS_(2, i)) * tmp2;
 
-      // (-g' * mu + (A * t - b) * lambda) >= 0
+      // (-g' * mu + (A * t - b) * lambda) >= d_min
       T tmp3 = 0.0;
       for (int k = 0; k < 4; ++k) {
         tmp3 += g_[k] * x[n_index + k];
@@ -645,7 +737,7 @@ void DualVariableWarmStartIPOPTQPInterface::generate_tapes(int n, int m,
   double sig;
   adouble obj_value;
 
-  double dummy;
+  double dummy = 0.0;
 
   obj_lam = new double[m + 1];
 

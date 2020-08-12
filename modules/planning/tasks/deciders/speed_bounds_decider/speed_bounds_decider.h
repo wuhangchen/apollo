@@ -20,10 +20,11 @@
 
 #pragma once
 
+#include <memory>
+
+#include "modules/planning/common/frame.h"
 #include "modules/planning/common/st_graph_data.h"
-#include "modules/planning/proto/decider_config.pb.h"
 #include "modules/planning/proto/planning_config.pb.h"
-#include "modules/planning/proto/speed_bounds_decider_config.pb.h"
 #include "modules/planning/tasks/deciders/decider.h"
 
 namespace apollo {
@@ -31,47 +32,14 @@ namespace planning {
 
 class SpeedBoundsDecider : public Decider {
  public:
-  explicit SpeedBoundsDecider(const TaskConfig& config);
+  SpeedBoundsDecider(const TaskConfig& config,
+                     const std::shared_ptr<DependencyInjector>& injector);
 
  private:
-  apollo::common::Status Process(
-      Frame* const frame,
-      ReferenceLineInfo* const reference_line_info) override;
-
-  void AddPathEndStop(Frame* const frame,
-                      ReferenceLineInfo* const reference_line_info);
-
-  void CheckLaneChangeUrgency(Frame* const frame);
+  common::Status Process(Frame* const frame,
+                         ReferenceLineInfo* const reference_line_info) override;
 
   double SetSpeedFallbackDistance(PathDecision* const path_decision);
-
-  // @brief Rule-based stop for side pass on reverse lane
-  void StopOnSidePass(Frame* const frame,
-                      ReferenceLineInfo* const reference_line_info);
-
-  // @brief Check if necessary to set stop fence used for nonscenario side pass
-  bool CheckSidePassStop(const PathData& path_data,
-                         const ReferenceLineInfo& reference_line_info,
-                         double* stop_s_on_pathdata);
-
-  // @brief Set stop fence for side pass
-  bool BuildSidePassStopFence(const PathData& path_data,
-                              const double stop_s_on_pathdata,
-                              common::PathPoint* stop_pathpoint,
-                              Frame* const frame,
-                              ReferenceLineInfo* const reference_line_info);
-
-  bool BuildSidePassStopFence(const common::PathPoint& stop_point,
-                              Frame* const frame,
-                              ReferenceLineInfo* const reference_line_info);
-
-  // @brief Check if ADV stop at a stop fence
-  bool CheckADCStop(const ReferenceLineInfo& reference_line_info,
-                    const common::PathPoint& stop_point);
-
-  // @brief Check if needed to check clear again for side pass
-  bool CheckClearDone(const ReferenceLineInfo& reference_line_info,
-                      const common::PathPoint& stop_point);
 
   void RecordSTGraphDebug(
       const StGraphData& st_graph_data,
@@ -79,7 +47,6 @@ class SpeedBoundsDecider : public Decider {
 
  private:
   SpeedBoundsDeciderConfig speed_bounds_config_;
-  bool is_clear_to_change_lane_ = false;
 };
 
 }  // namespace planning

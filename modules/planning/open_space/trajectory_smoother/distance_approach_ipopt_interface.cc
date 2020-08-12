@@ -44,10 +44,10 @@ DistanceApproachIPOPTInterface::DistanceApproachIPOPTInterface(
       obstacles_edges_num_(obstacles_edges_num),
       obstacles_A_(obstacles_A),
       obstacles_b_(obstacles_b) {
-  CHECK(horizon < std::numeric_limits<int>::max())
+  ACHECK(horizon < std::numeric_limits<int>::max())
       << "Invalid cast on horizon in open space planner";
   horizon_ = static_cast<int>(horizon);
-  CHECK(obstacles_num < std::numeric_limits<int>::max())
+  ACHECK(obstacles_num < std::numeric_limits<int>::max())
       << "Invalid cast on obstacles_num in open space planner";
 
   obstacles_num_ = static_cast<int>(obstacles_num);
@@ -59,8 +59,8 @@ DistanceApproachIPOPTInterface::DistanceApproachIPOPTInterface(
   state_result_ = Eigen::MatrixXd::Zero(4, horizon_ + 1);
   dual_l_result_ = Eigen::MatrixXd::Zero(obstacles_edges_sum_, horizon_ + 1);
   dual_n_result_ = Eigen::MatrixXd::Zero(4 * obstacles_num_, horizon_ + 1);
-  control_result_ = Eigen::MatrixXd::Zero(2, horizon_ + 1);
-  time_result_ = Eigen::MatrixXd::Zero(1, horizon_ + 1);
+  control_result_ = Eigen::MatrixXd::Zero(2, horizon_);
+  time_result_ = Eigen::MatrixXd::Zero(1, horizon_);
   state_start_index_ = 0;
   control_start_index_ = 4 * (horizon_ + 1);
   time_start_index_ = control_start_index_ + 2 * horizon_;
@@ -168,7 +168,7 @@ bool DistanceApproachIPOPTInterface::get_bounds_info(int n, double* x_l,
                                                      double* x_u, int m,
                                                      double* g_l, double* g_u) {
   ADEBUG << "get_bounds_info";
-  CHECK(XYbounds_.size() == 4)
+  ACHECK(XYbounds_.size() == 4)
       << "XYbounds_ size is not 4, but" << XYbounds_.size();
 
   // Variables: includes state, u, sample time and lagrange multipliers
@@ -212,11 +212,11 @@ bool DistanceApproachIPOPTInterface::get_bounds_info(int n, double* x_l,
 
   // 2. control variables, 2 * [0, horizon_-1]
   for (int i = 0; i < horizon_; ++i) {
-    // u1
+    // steer
     x_l[variable_index] = -2e19;
     x_u[variable_index] = 2e19;
 
-    // u2
+    // a
     x_l[variable_index + 1] = -2e19;
     x_u[variable_index + 1] = 2e19;
 
@@ -386,7 +386,7 @@ bool DistanceApproachIPOPTInterface::get_starting_point(
     int n, bool init_x, double* x, bool init_z, double* z_L, double* z_U, int m,
     bool init_lambda, double* lambda) {
   ADEBUG << "get_starting_point";
-  CHECK(init_x) << "Warm start init_x setting failed";
+  ACHECK(init_x) << "Warm start init_x setting failed";
 
   CHECK_EQ(horizon_, uWS_.cols());
   CHECK_EQ(horizon_ + 1, xWS_.cols());
@@ -446,7 +446,7 @@ bool DistanceApproachIPOPTInterface::eval_grad_f(int n, const double* x,
 bool DistanceApproachIPOPTInterface::eval_g(int n, const double* x, bool new_x,
                                             int m, double* g) {
   eval_constraints(n, x, m, g);
-  if (enable_constraint_check_) check_g(n, x, m, g);
+  // if (enable_constraint_check_) check_g(n, x, m, g);
   return true;
 }
 
@@ -1367,7 +1367,7 @@ void DistanceApproachIPOPTInterface::finalize_solution(
     state_result_(3, i) = x[state_index + 3];
     control_result_(0, i) = x[control_index];
     control_result_(1, i) = x[control_index + 1];
-    time_result_(0, i) = x[time_index];
+    time_result_(0, i) = ts_ * x[time_index];
     for (int j = 0; j < obstacles_edges_sum_; ++j) {
       dual_l_result_(j, i) = x[dual_l_index + j];
     }
@@ -1384,13 +1384,12 @@ void DistanceApproachIPOPTInterface::finalize_solution(
   state_result_(1, 0) = x0_(1, 0);
   state_result_(2, 0) = x0_(2, 0);
   state_result_(3, 0) = x0_(3, 0);
-  // push back last horizon for state and time variables
+  // push back last horizon for states
   state_result_(0, horizon_) = xf_(0, 0);
   state_result_(1, horizon_) = xf_(1, 0);
   state_result_(2, horizon_) = xf_(2, 0);
   state_result_(3, horizon_) = xf_(3, 0);
-  time_result_(0, horizon_) = x[time_index];
-  time_result_ = ts_ * time_result_;
+
   for (int j = 0; j < obstacles_edges_sum_; ++j) {
     dual_l_result_(j, horizon_) = x[dual_l_index + j];
   }
@@ -1420,7 +1419,9 @@ void DistanceApproachIPOPTInterface::get_optimization_results(
   *dual_l_result = dual_l_result_;
   *dual_n_result = dual_n_result_;
 
-  if (!distance_approach_config_.enable_initial_final_check()) return;
+  if (!distance_approach_config_.enable_initial_final_check()) {
+    return;
+  }
   CHECK_EQ(state_result_.cols(), xWS_.cols());
   CHECK_EQ(state_result_.rows(), xWS_.rows());
   double state_diff_max = 0.0;
@@ -1432,6 +1433,7 @@ void DistanceApproachIPOPTInterface::get_optimization_results(
   }
 
   // 2. control variable initialization, 2 * horizon_
+  CHECK_EQ(control_result_.cols(), uWS_.cols());
   CHECK_EQ(control_result_.rows(), uWS_.rows());
   double control_diff_max = 0.0;
   for (int i = 0; i < horizon_; ++i) {
@@ -1441,7 +1443,7 @@ void DistanceApproachIPOPTInterface::get_optimization_results(
                                 control_diff_max);
   }
 
-  // 2. time scale variable initialization, horizon_ + 1, no
+  // 2. time scale variable initialization, horizon_ + 1
 
   // 3. lagrange constraint l, obstacles_edges_sum_ * (horizon_+1)
   CHECK_EQ(dual_l_result_.cols(), l_warm_up_.cols());
@@ -1874,7 +1876,7 @@ bool DistanceApproachIPOPTInterface::check_g(int n, const double* x, int m,
 
   for (int idx = 0; idx < m; ++idx) {
     if (g[idx] > g_u_tmp[idx] + delta_v || g[idx] < g_l_tmp[idx] - delta_v) {
-      AINFO << "constratins idx unfeasible: " << idx << ", g: " << g[idx]
+      AINFO << "constrains idx unfeasible: " << idx << ", g: " << g[idx]
             << ", lower: " << g_l_tmp[idx] << ", upper: " << g_u_tmp[idx];
     }
   }
@@ -1894,7 +1896,7 @@ void DistanceApproachIPOPTInterface::generate_tapes(int n, int m,
 
   double sig;
   adouble obj_value;
-  double dummy;
+  double dummy = 0.0;
   obj_lam = new double[m + 1];
   get_starting_point(n, 1, &xp[0], 0, &zl[0], &zu[0], m, 0, &lamp[0]);
 

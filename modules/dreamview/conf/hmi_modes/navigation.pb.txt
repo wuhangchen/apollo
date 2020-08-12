@@ -3,6 +3,7 @@ cyber_modules {
   key: "Camera"
   value: {
     dag_files: "/apollo/modules/drivers/camera/dag/camera.dag"
+    dag_files: "/apollo/modules/drivers/video/dag/video.dag"
   }
 }
 # Should specify perception module after dag is ready
@@ -65,6 +66,12 @@ cyber_modules {
   key: "Guardian"
   value: {
     dag_files: "/apollo/modules/guardian/dag/guardian.dag"
+  }
+}
+cyber_modules {
+  key: "Third Party Perception"
+  value: {
+    dag_files: "/apollo/modules/third_party_perception/dag/third_party_perception.dag"
   }
 }
 modules {

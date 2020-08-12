@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -6,6 +7,9 @@ cc_library(
     name = "lane_sequence_predictor",
     srcs = ["lane_sequence_predictor.cc"],
     hdrs = ["lane_sequence_predictor.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         "//modules/prediction/common:validation_checker",
         "//modules/prediction/predictor/sequence:sequence_predictor",
@@ -15,9 +19,7 @@ cc_library(
 cc_test(
     name = "lane_sequence_predictor_test",
     size = "small",
-    srcs = [
-        "lane_sequence_predictor_test.cc",
-    ],
+    srcs = ["lane_sequence_predictor_test.cc"],
     data = [
         "//modules/prediction:prediction_data",
         "//modules/prediction:prediction_testdata",

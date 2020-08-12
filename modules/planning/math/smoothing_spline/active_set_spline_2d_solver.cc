@@ -23,9 +23,7 @@
 #include <algorithm>
 
 #include "cyber/common/log.h"
-
 #include "modules/common/math/qp_solver/qp_solver_gflags.h"
-#include "modules/common/time/time.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -35,7 +33,6 @@ namespace {
 constexpr double kRoadBound = 1e10;
 }
 
-using apollo::common::time::Clock;
 using Eigen::MatrixXd;
 
 ActiveSetSpline2dSolver::ActiveSetSpline2dSolver(
@@ -123,7 +120,7 @@ bool ActiveSetSpline2dSolver::Solve() {
   }
   DCHECK_EQ(index, kernel_matrix.rows() * kernel_matrix.cols());
 
-  // search space lower bound and uppper bound
+  // search space lower bound and upper bound
   double lower_bound[num_param];  // NOLINT
   double upper_bound[num_param];  // NOLINT
   memset(lower_bound, 0, sizeof lower_bound);
@@ -176,7 +173,6 @@ bool ActiveSetSpline2dSolver::Solve() {
   int max_iter = std::max(FLAGS_default_qp_iteration_num, num_constraint);
 
   ::qpOASES::returnValue ret;
-  const double start_timestamp = Clock::NowInSeconds();
   if (use_hotstart) {
     ADEBUG << "ActiveSetSpline2dSolver is using SQP hotstart.";
     ret = sqp_solver_->hotstart(
@@ -194,9 +190,7 @@ bool ActiveSetSpline2dSolver::Solve() {
                             lower_bound, upper_bound, constraint_lower_bound,
                             constraint_upper_bound, max_iter);
   }
-  const double end_timestamp = Clock::NowInSeconds();
-  ADEBUG << "ActiveSetSpline2dSolver QP time: "
-         << (end_timestamp - start_timestamp) * 1000 << " ms.";
+
   ADEBUG << "return status is" << getSimpleStatus(ret);
   if (ret != qpOASES::SUCCESSFUL_RETURN) {
     if (ret == qpOASES::RET_MAX_NWSR_REACHED) {

@@ -20,8 +20,6 @@
 
 #pragma once
 
-#include <qpOASES.hpp>
-
 #include <memory>
 #include <vector>
 
@@ -29,6 +27,7 @@
 #include "modules/planning/math/smoothing_spline/spline_2d_constraint.h"
 #include "modules/planning/math/smoothing_spline/spline_2d_kernel.h"
 #include "modules/planning/math/smoothing_spline/spline_2d_solver.h"
+#include "qpOASES.hpp"
 
 namespace apollo {
 namespace planning {

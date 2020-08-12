@@ -12,10 +12,10 @@ decision {
       reason_code: STOP_REASON_SIGNAL
       reason: "stop by TL_2516"
       stop_point {
-        x: 586261.34696462157
-        y: 4141304.4974646466
+        x: 586261.31321803678
+        y: 4141304.5066310731
       }
-      stop_heading: -1.7940405570566935
+      stop_heading: -1.7951855150751495
       change_lane_type: FORWARD
     }
   }
@@ -24,14 +24,14 @@ decision {
       id: "11511_0"
       perception_id: 11511
       object_decision {
-        follow {
-          distance_s: -3
+        yield {
+          distance_s: -5
           fence_point {
-            x: 586260.89189296
-            y: 4141282.2108829827
+            x: 586260.355368626
+            y: 4141284.1422478016
             z: 0
           }
-          fence_heading: -1.2369036083899707
+          fence_heading: -1.3338289826636047
         }
       }
     }
@@ -39,24 +39,14 @@ decision {
       id: "11511_1"
       perception_id: 11511
       object_decision {
-        follow {
-          distance_s: -3
+        yield {
+          distance_s: -5
           fence_point {
-            x: 586260.82803133084
-            y: 4141282.4004130447
+            x: 586260.30678834254
+            y: 4141284.3362579974
             z: 0
           }
-          fence_heading: -1.2547845150459418
-        }
-      }
-    }
-    decision {
-      id: "11652"
-      perception_id: 11652
-      object_decision {
-        nudge {
-          type: RIGHT_NUDGE
-          distance_l: -0.3
+          fence_heading: -1.3338289826636047
         }
       }
     }
@@ -68,11 +58,11 @@ decision {
           reason_code: STOP_REASON_SIGNAL
           distance_s: -1
           stop_point {
-            x: 586261.34696462157
-            y: 4141304.4974646466
+            x: 586261.31321803678
+            y: 4141304.5066310731
             z: 0
           }
-          stop_heading: -1.7940405570566935
+          stop_heading: -1.7951855150751495
         }
       }
     }
@@ -119,3 +109,30 @@ engage_advice {
 }
 trajectory_type: SPEED_FALLBACK
 replan_reason: "replan for manual mode."
+target_lane_id {
+  id: "188_1_-1"
+}
+target_lane_id {
+  id: "2726_1_-1"
+}
+target_lane_id {
+  id: "382_1_-1"
+}
+target_lane_id {
+  id: "10898_1_-1"
+}
+target_lane_id {
+  id: "300_1_-1"
+}
+target_lane_id {
+  id: "10771_1_-1"
+}
+target_lane_id {
+  id: "201_1_-1"
+}
+target_lane_id {
+  id: "2811_1_-1"
+}
+target_lane_id {
+  id: "2813_1_-1"
+}

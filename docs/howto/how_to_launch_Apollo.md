@@ -1,4 +1,4 @@
-# How to Launch and Run Apollo 
+# How to Launch and Run Apollo
 First check and make sure you are in development docker container before you proceed. Now you will need to build from the source. If you want to run the entire system, make sure you have an
 nVidia GPU and that you have installed the Linux nVidia drivers.
 You could still proceed with the next few steps even if you are missing the Linux nVidia drivers, as the system will run but with the CUDA-based perception and other modules.
@@ -60,6 +60,10 @@ From the dropdown box selet "Navigation" mode.
 To see if the system works, use the demo 'record' which feeds the system.
 
 ```
+# You need to download the demo record using the following commands
+cd docs/demo_guide/
+python3 rosbag_helper.py demo_3.5.record
+
 # You can now replay this demo "record" in a loop with the '-l' flag
 cyber_recorder play -f docs/demo_guide/demo_3.5.record -l
 ```

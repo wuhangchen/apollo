@@ -20,7 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "modules/perception/camera/app/perception.pb.h"
+#include "modules/perception/camera/app/proto/perception.pb.h"
 #include "modules/perception/camera/common/camera_frame.h"
 #include "modules/perception/camera/common/object_template_manager.h"
 #include "modules/perception/camera/lib/interface/base_calibration_service.h"
@@ -55,7 +55,6 @@ class ObstacleCameraPerception : public BaseCameraPerception {
   ~ObstacleCameraPerception() = default;
   bool Init(const CameraPerceptionInitOptions &options) override;
   void InitLane(const std::string &work_root,
-                const base::BaseCameraModelPtr model,
                 const app::PerceptionParam &perception_param);
   void InitCalibrationService(const std::string &work_root,
                               const base::BaseCameraModelPtr model,

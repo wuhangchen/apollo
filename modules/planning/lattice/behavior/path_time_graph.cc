@@ -23,12 +23,11 @@
 #include <algorithm>
 #include <limits>
 
-#include "modules/planning/proto/sl_boundary.pb.h"
-
 #include "modules/common/configs/vehicle_config_helper.h"
 #include "modules/common/math/linear_interpolation.h"
 #include "modules/common/math/path_matcher.h"
 #include "modules/planning/common/planning_gflags.h"
+#include "modules/planning/proto/sl_boundary.pb.h"
 
 namespace apollo {
 namespace planning {
@@ -215,7 +214,7 @@ bool PathTimeGraph::GetPathTimeObstacle(const std::string& obstacle_id,
 
 std::vector<std::pair<double, double>> PathTimeGraph::GetPathBlockingIntervals(
     const double t) const {
-  CHECK(time_range_.first <= t && t <= time_range_.second);
+  ACHECK(time_range_.first <= t && t <= time_range_.second);
   std::vector<std::pair<double, double>> intervals;
   for (const auto& pt_obstacle : path_time_obstacles_) {
     if (t > pt_obstacle.max_t() || t < pt_obstacle.min_t()) {
@@ -258,7 +257,7 @@ std::pair<double, double> PathTimeGraph::get_time_range() const {
 std::vector<STPoint> PathTimeGraph::GetObstacleSurroundingPoints(
     const std::string& obstacle_id, const double s_dist,
     const double t_min_density) const {
-  CHECK(t_min_density > 0.0);
+  ACHECK(t_min_density > 0.0);
   std::vector<STPoint> pt_pairs;
   if (path_time_obstacle_map_.find(obstacle_id) ==
       path_time_obstacle_map_.end()) {
@@ -287,7 +286,7 @@ std::vector<STPoint> PathTimeGraph::GetObstacleSurroundingPoints(
   }
 
   double time_gap = t1 - t0;
-  CHECK(time_gap > -FLAGS_lattice_epsilon);
+  ACHECK(time_gap > -FLAGS_numerical_epsilon);
   time_gap = std::fabs(time_gap);
 
   size_t num_sections = static_cast<size_t>(time_gap / t_min_density + 1);
@@ -314,7 +313,7 @@ bool PathTimeGraph::IsObstacleInGraph(const std::string& obstacle_id) {
 std::vector<std::pair<double, double>> PathTimeGraph::GetLateralBounds(
     const double s_start, const double s_end, const double s_resolution) {
   CHECK_LT(s_start, s_end);
-  CHECK_GT(s_resolution, FLAGS_lattice_epsilon);
+  CHECK_GT(s_resolution, FLAGS_numerical_epsilon);
   std::vector<std::pair<double, double>> bounds;
   std::vector<double> discretized_path;
   double s_range = s_end - s_start;
@@ -369,15 +368,15 @@ void PathTimeGraph::UpdateLateralBoundsByObstacle(
       discretized_path.begin(), discretized_path.end(), sl_boundary.start_s());
   size_t start_index = start_iter - discretized_path.begin();
   size_t end_index = end_iter - discretized_path.begin();
-  if (sl_boundary.end_l() > -FLAGS_lattice_epsilon &&
-      sl_boundary.start_l() < FLAGS_lattice_epsilon) {
+  if (sl_boundary.end_l() > -FLAGS_numerical_epsilon &&
+      sl_boundary.start_l() < FLAGS_numerical_epsilon) {
     for (size_t i = start_index; i < end_index; ++i) {
-      bounds->operator[](i).first = -FLAGS_lattice_epsilon;
-      bounds->operator[](i).second = FLAGS_lattice_epsilon;
+      bounds->operator[](i).first = -FLAGS_numerical_epsilon;
+      bounds->operator[](i).second = FLAGS_numerical_epsilon;
     }
     return;
   }
-  if (sl_boundary.end_l() < FLAGS_lattice_epsilon) {
+  if (sl_boundary.end_l() < FLAGS_numerical_epsilon) {
     for (size_t i = start_index; i < std::min(end_index + 1, bounds->size());
          ++i) {
       bounds->operator[](i).first =
@@ -386,7 +385,7 @@ void PathTimeGraph::UpdateLateralBoundsByObstacle(
     }
     return;
   }
-  if (sl_boundary.start_l() > -FLAGS_lattice_epsilon) {
+  if (sl_boundary.start_l() > -FLAGS_numerical_epsilon) {
     for (size_t i = start_index; i < std::min(end_index + 1, bounds->size());
          ++i) {
       bounds->operator[](i).second =

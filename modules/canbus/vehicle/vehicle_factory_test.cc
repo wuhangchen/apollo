@@ -48,6 +48,12 @@ TEST_F(VehicleFactoryTest, CreateVehicle) {
 
   parameter.set_brand(apollo::common::ZHONGYUN);
   EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
+
+  parameter.set_brand(apollo::common::CH);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
+
+  parameter.set_brand(apollo::common::DKIT);
+  EXPECT_NE(factory_.CreateVehicle(parameter), nullptr);
 }
 
 }  // namespace canbus

@@ -60,7 +60,7 @@ std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForCruising(
   CHECK_GT(FLAGS_num_velocity_sample, 1);
 
   // time interval is one second plus the last one 0.01
-  constexpr size_t num_of_time_samples = 9;
+  static constexpr size_t num_of_time_samples = 9;
   std::array<double, num_of_time_samples> time_samples;
   for (size_t i = 1; i < num_of_time_samples; ++i) {
     auto ratio =
@@ -102,7 +102,7 @@ std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForCruising(
 std::vector<Condition> EndConditionSampler::SampleLonEndConditionsForStopping(
     const double ref_stop_point) const {
   // time interval is one second plus the last one 0.01
-  constexpr size_t num_of_time_samples = 9;
+  static constexpr size_t num_of_time_samples = 9;
   std::array<double, num_of_time_samples> time_samples;
   for (size_t i = 1; i < num_of_time_samples; ++i) {
     auto ratio =
@@ -159,7 +159,7 @@ void EndConditionSampler::QueryFollowPathTimePoints(
     std::vector<SamplePoint>* const sample_points) const {
   std::vector<STPoint> follow_path_time_points =
       ptr_path_time_graph_->GetObstacleSurroundingPoints(
-          obstacle_id, -FLAGS_lattice_epsilon, FLAGS_time_min_density);
+          obstacle_id, -FLAGS_numerical_epsilon, FLAGS_time_min_density);
 
   for (const auto& path_time_point : follow_path_time_points) {
     double v = ptr_prediction_querier_->ProjectVelocityAlongReferenceLine(
@@ -188,7 +188,7 @@ void EndConditionSampler::QueryOvertakePathTimePoints(
     std::vector<SamplePoint>* sample_points) const {
   std::vector<STPoint> overtake_path_time_points =
       ptr_path_time_graph_->GetObstacleSurroundingPoints(
-          obstacle_id, FLAGS_lattice_epsilon, FLAGS_time_min_density);
+          obstacle_id, FLAGS_numerical_epsilon, FLAGS_time_min_density);
 
   for (const auto& path_time_point : overtake_path_time_points) {
     double v = ptr_prediction_querier_->ProjectVelocityAlongReferenceLine(

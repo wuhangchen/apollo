@@ -58,7 +58,7 @@ bool OMTObstacleTracker::Init(const ObstacleTrackerInitOptions &options) {
   std::string type_change_cost =
       GetAbsolutePath(options.root_dir, omt_param_.type_change_cost());
   std::ifstream fin(type_change_cost);
-  CHECK(fin.is_open());
+  ACHECK(fin.is_open());
   kTypeAssociatedCost_.clear();
   int n_type = static_cast<int>(base::ObjectSubType::MAX_OBJECT_TYPE);
   for (int i = 0; i < n_type; ++i) {
@@ -435,8 +435,8 @@ bool OMTObstacleTracker::Associate3D(const ObstacleTrackerOptions &options,
   reference_.UpdateReference(frame, targets_);
   frame->tracked_objects.clear();
   TrackObjectPtrs track_objects;
-  // mismatch may lead to a abnormal movement
-  // if a abnormal movement is found, remove old target and create new one
+  // mismatch may lead to an abnormal movement
+  // if an abnormal movement is found, remove old target and create new one
   for (auto &target : targets_) {
     if (target.isLost() || target.Size() == 1) {
       continue;

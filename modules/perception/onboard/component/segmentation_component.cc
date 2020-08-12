@@ -15,9 +15,9 @@
  *****************************************************************************/
 #include "modules/perception/onboard/component/segmentation_component.h"
 
+#include "cyber/time/clock.h"
+#include "modules/common/util/perf_util.h"
 #include "modules/perception/common/sensor_manager/sensor_manager.h"
-#include "modules/perception/lib/utils/perf.h"
-#include "modules/perception/lib/utils/time_util.h"
 #include "modules/perception/lidar/common/lidar_error_code.h"
 #include "modules/perception/lidar/common/lidar_frame_pool.h"
 #include "modules/perception/lidar/common/lidar_log.h"
@@ -54,9 +54,10 @@ bool SegmentationComponent::Init() {
 
 bool SegmentationComponent::Proc(
     const std::shared_ptr<drivers::PointCloud>& message) {
-  AINFO << "Enter segmentation component, message timestamp: "
-        << std::to_string(message->measurement_time()) << " current timestamp: "
-        << std::to_string(lib::TimeUtil::GetCurrentTime());
+  AINFO << std::setprecision(16)
+        << "Enter segmentation component, message timestamp: "
+        << message->measurement_time() << " current timestamp: "
+        << apollo::common::time::Clock::NowInSeconds();
 
   std::shared_ptr<LidarFrameMessage> out_message(new (std::nothrow)
                                                      LidarFrameMessage);
@@ -70,8 +71,8 @@ bool SegmentationComponent::Proc(
 }
 
 bool SegmentationComponent::InitAlgorithmPlugin() {
-  CHECK(common::SensorManager::Instance()->GetSensorInfo(sensor_name_,
-                                                         &sensor_info_));
+  ACHECK(common::SensorManager::Instance()->GetSensorInfo(sensor_name_,
+                                                          &sensor_info_));
 
   segmentor_.reset(new lidar::LidarObstacleSegmentation);
   if (segmentor_ == nullptr) {
@@ -96,20 +97,20 @@ bool SegmentationComponent::InitAlgorithmPlugin() {
 bool SegmentationComponent::InternalProc(
     const std::shared_ptr<const drivers::PointCloud>& in_message,
     const std::shared_ptr<LidarFrameMessage>& out_message) {
-  PERCEPTION_PERF_FUNCTION_WITH_INDICATOR(sensor_name_);
+  PERF_FUNCTION_WITH_INDICATOR(sensor_name_);
   {
     std::unique_lock<std::mutex> lock(s_mutex_);
     s_seq_num_++;
   }
   const double timestamp = in_message->measurement_time();
-  const double cur_time = lib::TimeUtil::GetCurrentTime();
+  const double cur_time = apollo::common::time::Clock::NowInSeconds();
   const double start_latency = (cur_time - timestamp) * 1e3;
-  AINFO << "FRAME_STATISTICS:Lidar:Start:msg_time[" << std::to_string(timestamp)
-        << sensor_name_ << ":Start:msg_time["
-        << "]:cur_time[" << std::to_string(cur_time) << "]:cur_latency["
-        << start_latency << "]";
+  AINFO << std::setprecision(16) << "FRAME_STATISTICS:Lidar:Start:msg_time["
+        << timestamp << "]:sensor[" << sensor_name_ << "]:cur_time[" << cur_time
+        << "]:cur_latency[" << start_latency << "]";
 
   out_message->timestamp_ = timestamp;
+  out_message->lidar_timestamp_ = in_message->header().lidar_timestamp();
   out_message->seq_num_ = s_seq_num_;
   out_message->process_stage_ = ProcessStage::LIDAR_SEGMENTATION;
   out_message->error_code_ = apollo::common::ErrorCode::OK;
@@ -120,21 +121,22 @@ bool SegmentationComponent::InternalProc(
   frame->timestamp = timestamp;
   frame->sensor_info = sensor_info_;
 
-  PERCEPTION_PERF_BLOCK_START();
+  PERF_BLOCK_START();
   Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+  Eigen::Affine3d pose_novatel = Eigen::Affine3d::Identity();
   const double lidar_query_tf_timestamp =
       timestamp - lidar_query_tf_offset_ * 0.001;
-  if (!lidar2world_trans_.GetSensor2worldTrans(lidar_query_tf_timestamp,
-                                               &pose)) {
+  if (!lidar2world_trans_.GetSensor2worldTrans(lidar_query_tf_timestamp, &pose,
+                                               &pose_novatel)) {
     out_message->error_code_ = apollo::common::ErrorCode::PERCEPTION_ERROR_TF;
-    AERROR << "Failed to get pose at time: "
-           << std::to_string(lidar_query_tf_timestamp);
+    AERROR << "Failed to get pose at time: " << lidar_query_tf_timestamp;
     return false;
   }
-  PERCEPTION_PERF_BLOCK_END_WITH_INDICATOR(
-      sensor_name_, "segmentation_1::get_lidar_to_world_pose");
+  PERF_BLOCK_END_WITH_INDICATOR(sensor_name_,
+                                "segmentation_1::get_lidar_to_world_pose");
 
   frame->lidar2world_pose = pose;
+  frame->novatel2world_pose = pose_novatel;
 
   lidar::LidarObstacleSegmentationOptions segment_opts;
   segment_opts.sensor_name = sensor_name_;
@@ -147,8 +149,8 @@ bool SegmentationComponent::InternalProc(
     AERROR << "Lidar segmentation process error, " << ret.log;
     return false;
   }
-  PERCEPTION_PERF_BLOCK_END_WITH_INDICATOR(sensor_name_,
-                                           "segmentation_2::segment_obstacle");
+  PERF_BLOCK_END_WITH_INDICATOR(sensor_name_,
+                                "segmentation_2::segment_obstacle");
 
   return true;
 }

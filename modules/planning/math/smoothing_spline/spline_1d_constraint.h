@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "Eigen/Core"
-
 #include "modules/planning/math/smoothing_spline/affine_constraint.h"
 #include "modules/planning/math/smoothing_spline/spline_1d.h"
 
@@ -69,7 +68,7 @@ class Spline1dConstraint {
   /**
    * @brief: equality constraint to guarantee joint smoothness
    * boundary equality constriant constraint on fx, dfx, ddfx ... in vector
-   * form; upto third order
+   * form; up to third order
    **/
   bool AddPointConstraint(const double x, const double fx);
   bool AddPointDerivativeConstraint(const double x, const double dfx);
@@ -86,16 +85,16 @@ class Spline1dConstraint {
   bool AddPointThirdDerivativeConstraintInRange(const double x,
                                                 const double dddfx,
                                                 const double range);
-  // guarantee upto values are joint
+  // guarantee up to values are joint
   bool AddSmoothConstraint();
 
-  // guarantee upto derivative are joint
+  // guarantee up to derivative are joint
   bool AddDerivativeSmoothConstraint();
 
-  // guarantee upto second order derivative are joint
+  // guarantee up to second order derivative are joint
   bool AddSecondDerivativeSmoothConstraint();
 
-  // guarantee upto third order derivative are joint
+  // guarantee up to third order derivative are joint
   bool AddThirdDerivativeSmoothConstraint();
 
   /**

@@ -53,7 +53,7 @@ void ContiArsDetector::RawObs2Frame(
   ADEBUG << "angular_speed: " << angular_speed;
   ADEBUG << "rotation_radar: " << rotation_radar;
   for (const auto radar_obs : corrected_obstacles.contiobs()) {
-    base::ObjectPtr radar_object = std::make_shared<base::Object>();
+    base::ObjectPtr radar_object(new base::Object);
     radar_object->id = radar_obs.obstacle_id();
     radar_object->track_id = radar_obs.obstacle_id();
     Eigen::Vector4d local_loc(radar_obs.longitude_dist(),
@@ -104,8 +104,10 @@ void ContiArsDetector::RawObs2Frame(
     radar_object->confidence = static_cast<float>(radar_obs.probexist());
 
     int motion_state = radar_obs.dynprop();
-    if (motion_state == CONTI_MOVING || motion_state == CONTI_ONCOMING ||
-        motion_state == CONTI_CROSSING_MOVING) {
+    double prob_target = radar_obs.probexist();
+    if ((prob_target > MIN_PROBEXIST) &&
+        (motion_state == CONTI_MOVING || motion_state == CONTI_ONCOMING ||
+         motion_state == CONTI_CROSSING_MOVING)) {
       radar_object->motion_state = base::MotionState::MOVING;
     } else if (motion_state == CONTI_DYNAMIC_UNKNOWN) {
       radar_object->motion_state = base::MotionState::UNKNOWN;

@@ -1,40 +1,29 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
 
 cc_library(
     name = "control_gflags",
-    srcs = [
-        "control_gflags.cc",
-    ],
-    hdrs = [
-        "control_gflags.h",
-    ],
+    srcs = ["control_gflags.cc"],
+    hdrs = ["control_gflags.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//external:gflags",
+        "@com_github_gflags_gflags//:gflags",
     ],
 )
 
 cc_library(
     name = "hysteresis_filter",
-    srcs = [
-        "hysteresis_filter.cc",
-    ],
-    hdrs = [
-        "hysteresis_filter.h",
-    ],
+    srcs = ["hysteresis_filter.cc"],
+    hdrs = ["hysteresis_filter.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
 )
 
 cc_library(
     name = "interpolation_1d",
-    srcs = [
-        "interpolation_1d.cc",
-    ],
-    hdrs = [
-        "interpolation_1d.h",
-    ],
+    srcs = ["interpolation_1d.cc"],
+    hdrs = ["interpolation_1d.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         "//cyber",
@@ -44,12 +33,8 @@ cc_library(
 
 cc_library(
     name = "interpolation_2d",
-    srcs = [
-        "interpolation_2d.cc",
-    ],
-    hdrs = [
-        "interpolation_2d.h",
-    ],
+    srcs = ["interpolation_2d.cc"],
+    hdrs = ["interpolation_2d.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         "//cyber",
@@ -59,84 +44,80 @@ cc_library(
 
 cc_library(
     name = "leadlag_controller",
-    srcs = [
-        "leadlag_controller.cc",
+    srcs = ["leadlag_controller.cc"],
+    hdrs = ["leadlag_controller.h"],
+    copts = ['-DMODULE_NAME=\\"control\\"'],
+    deps = [
+        "//cyber/common:log",
+        "//modules/control/proto:leadlag_conf_cc_proto",
     ],
-    hdrs = [
-        "leadlag_controller.h",
-    ],
+)
+
+cc_library(
+    name = "mrac_controller",
+    srcs = ["mrac_controller.cc"],
+    hdrs = ["mrac_controller.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         "//cyber",
-        "//modules/control/proto:control_proto",
+        "//modules/common/configs/proto:vehicle_config_cc_proto",
+        "//modules/common/math:matrix_operations",
+        "//modules/common/status",
+        "//modules/common/util",
+        "//modules/control/proto:mrac_conf_cc_proto",
+        "@com_google_absl//absl/strings",
+        "@eigen",
     ],
 )
 
 cc_library(
     name = "pid_controller",
-    srcs = [
-        "pid_controller.cc",
-    ],
-    hdrs = [
-        "pid_controller.h",
-    ],
+    srcs = ["pid_controller.cc"],
+    hdrs = ["pid_controller.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//cyber",
-        "//modules/control/proto:control_proto",
+        "//cyber/common:log",
+        "//modules/control/proto:pid_conf_cc_proto",
     ],
 )
 
 cc_library(
     name = "pid_BC_controller",
-    srcs = [
-        "pid_BC_controller.cc",
-    ],
-    hdrs = [
-        "pid_BC_controller.h",
-    ],
+    srcs = ["pid_BC_controller.cc"],
+    hdrs = ["pid_BC_controller.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         ":pid_controller",
         "//cyber",
         "//modules/common/math",
-        "//modules/control/proto:control_proto",
     ],
 )
 
 cc_library(
     name = "pid_IC_controller",
-    srcs = [
-        "pid_IC_controller.cc",
-    ],
-    hdrs = [
-        "pid_IC_controller.h",
-    ],
+    srcs = ["pid_IC_controller.cc"],
+    hdrs = ["pid_IC_controller.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
         ":pid_controller",
         "//cyber",
         "//modules/common/math",
-        "//modules/control/proto:control_proto",
     ],
 )
 
 cc_library(
     name = "trajectory_analyzer",
-    srcs = [
-        "trajectory_analyzer.cc",
-    ],
-    hdrs = [
-        "trajectory_analyzer.h",
-    ],
+    srcs = ["trajectory_analyzer.cc"],
+    hdrs = ["trajectory_analyzer.h"],
     copts = ['-DMODULE_NAME=\\"control\\"'],
     deps = [
-        "//cyber",
+        ":control_gflags",
+        "//cyber/common:log",
         "//modules/common/math:linear_interpolation",
         "//modules/common/math:search",
-        "//modules/common/proto:pnc_point_proto",
+        "//modules/common/proto:pnc_point_cc_proto",
         "//modules/common/vehicle_state:vehicle_state_provider",
-        "//modules/planning/proto:planning_proto",
+        "//modules/planning/proto:planning_cc_proto",
     ],
 )
 
@@ -157,117 +138,200 @@ cc_library(
 cc_test(
     name = "hysteresis_filter_test",
     size = "small",
-    srcs = [
-        "hysteresis_filter_test.cc",
-    ],
+    srcs = ["hysteresis_filter_test.cc"],
     deps = [
         ":hysteresis_filter",
-        "@gtest//:main",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "interpolation_1d_test",
     size = "small",
-    srcs = [
-        "interpolation_1d_test.cc",
-    ],
+    srcs = ["interpolation_1d_test.cc"],
     data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":interpolation_1d",
         "//cyber",
         "//modules/common/util",
-        "//modules/control/proto:control_proto",
-        "@gtest//:main",
+        "//modules/control/proto:calibration_table_cc_proto",
+        "//modules/control/proto:control_cmd_cc_proto",
+        "//modules/control/proto:control_conf_cc_proto",
+        "//modules/control/proto:gain_scheduler_conf_cc_proto",
+        "//modules/control/proto:lat_controller_conf_cc_proto",
+        "//modules/control/proto:leadlag_conf_cc_proto",
+        "//modules/control/proto:lon_controller_conf_cc_proto",
+        "//modules/control/proto:mpc_controller_conf_cc_proto",
+        "//modules/control/proto:mrac_conf_cc_proto",
+        "//modules/control/proto:pid_conf_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "interpolation_2d_test",
     size = "small",
-    srcs = [
-        "interpolation_2d_test.cc",
-    ],
+    srcs = ["interpolation_2d_test.cc"],
     data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":interpolation_2d",
         "//cyber",
         "//modules/common/util",
-        "//modules/control/proto:control_proto",
-        "@gtest//:main",
+        "//modules/control/proto:control_conf_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "leadlag_controller_test",
     size = "small",
-    srcs = [
-        "leadlag_controller_test.cc",
-    ],
+    srcs = ["leadlag_controller_test.cc"],
     data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":leadlag_controller",
+        "//cyber/common:file",
+        "//modules/canbus/proto:chassis_cc_proto",
+        "//modules/common/configs/proto:vehicle_config_cc_proto",
+        "//modules/common/proto:drive_state_cc_proto",
+        "//modules/common/proto:error_code_cc_proto",
+        "//modules/common/proto:header_cc_proto",
+        "//modules/common/proto:vehicle_signal_cc_proto",
         "//modules/common/util",
-        "//modules/control/proto:control_proto",
-        "@gtest//:main",
+        "//modules/control/proto:calibration_table_cc_proto",
+        "//modules/control/proto:control_conf_cc_proto",
+        "//modules/control/proto:gain_scheduler_conf_cc_proto",
+        "//modules/control/proto:lat_controller_conf_cc_proto",
+        "//modules/control/proto:leadlag_conf_cc_proto",
+        "//modules/control/proto:lon_controller_conf_cc_proto",
+        "//modules/control/proto:mpc_controller_conf_cc_proto",
+        "//modules/control/proto:mrac_conf_cc_proto",
+        "//modules/control/proto:pad_msg_cc_proto",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_test(
+    name = "mrac_controller_test",
+    size = "small",
+    srcs = ["mrac_controller_test.cc"],
+    data = ["//modules/control/testdata:control_testdata"],
+    deps = [
+        ":mrac_controller",
+        "//modules/canbus/proto:chassis_cc_proto",
+        "//modules/common/proto:drive_state_cc_proto",
+        "//modules/common/proto:vehicle_signal_cc_proto",
+        "//modules/common/util",
+        "//modules/control/proto:calibration_table_cc_proto",
+        "//modules/control/proto:control_conf_cc_proto",
+        "//modules/control/proto:gain_scheduler_conf_cc_proto",
+        "//modules/control/proto:lat_controller_conf_cc_proto",
+        "//modules/control/proto:leadlag_conf_cc_proto",
+        "//modules/control/proto:lon_controller_conf_cc_proto",
+        "//modules/control/proto:mpc_controller_conf_cc_proto",
+        "//modules/control/proto:pad_msg_cc_proto",
+        "//modules/control/proto:pid_conf_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "pid_controller_test",
     size = "small",
-    srcs = [
-        "pid_controller_test.cc",
-    ],
+    srcs = ["pid_controller_test.cc"],
     data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":pid_controller",
+        "//cyber/common:file",
+        "//modules/canbus/proto:chassis_cc_proto",
+        "//modules/common/configs/proto:vehicle_config_cc_proto",
+        "//modules/common/proto:drive_state_cc_proto",
+        "//modules/common/proto:error_code_cc_proto",
+        "//modules/common/proto:header_cc_proto",
+        "//modules/common/proto:vehicle_signal_cc_proto",
         "//modules/common/util",
-        "//modules/control/proto:control_proto",
-        "@gtest//:main",
+        "//modules/control/proto:calibration_table_cc_proto",
+        "//modules/control/proto:control_conf_cc_proto",
+        "//modules/control/proto:gain_scheduler_conf_cc_proto",
+        "//modules/control/proto:lat_controller_conf_cc_proto",
+        "//modules/control/proto:leadlag_conf_cc_proto",
+        "//modules/control/proto:lon_controller_conf_cc_proto",
+        "//modules/control/proto:mpc_controller_conf_cc_proto",
+        "//modules/control/proto:mrac_conf_cc_proto",
+        "//modules/control/proto:pad_msg_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "pid_BC_controller_test",
     size = "small",
-    srcs = [
-        "pid_BC_controller_test.cc",
-    ],
+    srcs = ["pid_BC_controller_test.cc"],
     data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":pid_BC_controller",
+        "//modules/canbus/proto:chassis_cc_proto",
+        "//modules/common/configs/proto:vehicle_config_cc_proto",
+        "//modules/common/proto:drive_state_cc_proto",
+        "//modules/common/proto:error_code_cc_proto",
+        "//modules/common/proto:header_cc_proto",
+        "//modules/common/proto:vehicle_signal_cc_proto",
         "//modules/common/util",
-        "//modules/control/proto:control_proto",
-        "@gtest//:main",
+        "//modules/control/proto:calibration_table_cc_proto",
+        "//modules/control/proto:control_conf_cc_proto",
+        "//modules/control/proto:gain_scheduler_conf_cc_proto",
+        "//modules/control/proto:lat_controller_conf_cc_proto",
+        "//modules/control/proto:leadlag_conf_cc_proto",
+        "//modules/control/proto:lon_controller_conf_cc_proto",
+        "//modules/control/proto:mpc_controller_conf_cc_proto",
+        "//modules/control/proto:mrac_conf_cc_proto",
+        "//modules/control/proto:pad_msg_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "pid_IC_controller_test",
     size = "small",
-    srcs = [
-        "pid_IC_controller_test.cc",
-    ],
+    srcs = ["pid_IC_controller_test.cc"],
     data = ["//modules/control/testdata:control_testdata"],
     deps = [
         ":pid_IC_controller",
+        "//modules/canbus/proto:chassis_cc_proto",
+        "//modules/common/configs/proto:vehicle_config_cc_proto",
+        "//modules/common/proto:drive_state_cc_proto",
+        "//modules/common/proto:error_code_cc_proto",
+        "//modules/common/proto:header_cc_proto",
+        "//modules/common/proto:vehicle_signal_cc_proto",
         "//modules/common/util",
-        "//modules/control/proto:control_proto",
-        "@gtest//:main",
+        "//modules/control/proto:calibration_table_cc_proto",
+        "//modules/control/proto:control_conf_cc_proto",
+        "//modules/control/proto:gain_scheduler_conf_cc_proto",
+        "//modules/control/proto:lat_controller_conf_cc_proto",
+        "//modules/control/proto:leadlag_conf_cc_proto",
+        "//modules/control/proto:lon_controller_conf_cc_proto",
+        "//modules/control/proto:mpc_controller_conf_cc_proto",
+        "//modules/control/proto:mrac_conf_cc_proto",
+        "//modules/control/proto:pad_msg_cc_proto",
+        "@com_google_googletest//:gtest_main",
     ],
 )
 
 cc_test(
     name = "trajectory_analyzer_test",
     size = "small",
-    srcs = [
-        "trajectory_analyzer_test.cc",
-    ],
+    srcs = ["trajectory_analyzer_test.cc"],
     deps = [
         ":trajectory_analyzer",
-        "//modules/common/time",
-        "@gtest//:main",
+        "//cyber/time:clock",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "dependency_injector",
+    hdrs = ["dependency_injector.h"],
+    deps = [
+        "//modules/common/vehicle_state:vehicle_state_provider",
     ],
 )
 

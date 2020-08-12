@@ -17,6 +17,8 @@
 #include "modules/data/tools/smart_recorder/interval_pool.h"
 
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
 
 #include "cyber/common/log.h"
 
@@ -24,6 +26,17 @@ namespace apollo {
 namespace data {
 
 IntervalPool::IntervalPool() {}
+
+void IntervalPool::AddInterval(const Interval& interval) {
+  if (pool_.empty() || interval.begin_time > pool_iter_->end_time) {
+    pool_.push_back(interval);
+    pool_iter_ = std::prev(pool_.end());
+    return;
+  }
+  pool_iter_->begin_time =
+      std::min(interval.begin_time, pool_iter_->begin_time);
+  pool_iter_->end_time = std::max(interval.end_time, pool_iter_->end_time);
+}
 
 void IntervalPool::AddInterval(const uint64_t begin_time,
                                const uint64_t end_time) {
@@ -73,6 +86,34 @@ void IntervalPool::PrintIntervals() const {
     AINFO << "Interval " << ++idx << ": " << interval.begin_time << " - "
           << interval.end_time;
   }
+}
+
+void IntervalPool::LogIntervalEvent(const std::string& name,
+                                    const std::string& description,
+                                    const uint64_t msg_time,
+                                    const uint64_t backward_time,
+                                    const uint64_t forward_time) const {
+  std::ofstream logfile(interval_event_log_file_path_,
+                        std::ios::out | std::ios::app);
+  if (!logfile) {
+    AERROR << "Failed to write " << interval_event_log_file_path_;
+    return;
+  }
+  logfile << std::fixed << std::setprecision(9);
+  logfile << "name=" << name << ", description=\"" << description << "\""
+          << ", msg_time=" << msg_time << ", interval_range=["
+          << msg_time - backward_time << ":" << msg_time + forward_time << "]"
+          << std::endl;
+}
+
+Interval IntervalPool::GetNextInterval() const {
+  if (pool_.empty()) {
+    struct Interval interval;
+    interval.begin_time = 0;
+    interval.end_time = 0;
+    return interval;
+  }
+  return *pool_iter_;
 }
 
 }  // namespace data

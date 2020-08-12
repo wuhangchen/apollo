@@ -20,18 +20,7 @@
 
 #pragma once
 
-#include <algorithm>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #include "cyber/common/macros.h"
-
-#include "modules/common/proto/pnc_point.pb.h"
-#include "modules/map/pnc_map/path.h"
-#include "modules/perception/proto/traffic_light_detection.pb.h"
-#include "modules/planning/common/path/path_data.h"
-#include "modules/planning/proto/path_decider_info.pb.h"
 #include "modules/planning/proto/planning_status.pb.h"
 
 /**
@@ -43,57 +32,20 @@ namespace planning {
 
 class PlanningContext {
  public:
-  // TODO(jinyun): to be removed/cleaned up.
-  //               put all of them inside Planningstatus
-  // @brief a container logging the data required for non-scenario side pass
-  // functionality
-  struct SidePassInfo {
-    bool change_lane_stop_flag = false;
-    common::PathPoint change_lane_stop_path_point;
-    bool check_clear_flag = false;
-  };
-
-  const SidePassInfo& side_pass_info() { return side_pass_info_; }
-
-  SidePassInfo* mutable_side_pass_info() { return &side_pass_info_; }
-
-  struct FallBackInfo {
-    std::string last_successful_path_label;
-  };
-
-  const FallBackInfo& fallback_info() { return fallback_info_; }
-
-  FallBackInfo* mutable_fallback_info() { return &fallback_info_; }
-
-  struct OpenSpaceInfo {
-    std::vector<std::string> partitioned_trajectories_index_history;
-  };
-
-  const OpenSpaceInfo& open_space_info() { return open_space_info_; }
-
-  OpenSpaceInfo* mutable_open_space_info() { return &open_space_info_; }
+  PlanningContext() = default;
 
   void Clear();
-
   void Init();
 
-  const PlanningStatus& planning_status() { return planning_status_; }
-
+  /*
+   * please put all status info inside PlanningStatus for easy maintenance.
+   * do NOT create new struct at this level.
+   * */
+  const PlanningStatus& planning_status() const { return planning_status_; }
   PlanningStatus* mutable_planning_status() { return &planning_status_; }
-
-  const PathDeciderInfo& path_decider_info() { return path_decider_info_; }
-
-  PathDeciderInfo* mutable_path_decider_info() { return &path_decider_info_; }
 
  private:
   PlanningStatus planning_status_;
-  SidePassInfo side_pass_info_;
-  FallBackInfo fallback_info_;
-  OpenSpaceInfo open_space_info_;
-  PathDeciderInfo path_decider_info_;
-
-  // this is a singleton class
-  DECLARE_SINGLETON(PlanningContext)
 };
 
 }  // namespace planning

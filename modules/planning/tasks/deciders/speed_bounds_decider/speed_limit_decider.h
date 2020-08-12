@@ -21,16 +21,14 @@
 #pragma once
 
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "modules/common/configs/proto/vehicle_config.pb.h"
-#include "modules/planning/proto/speed_bounds_decider_config.pb.h"
-
 #include "modules/common/status/status.h"
 #include "modules/planning/common/obstacle.h"
 #include "modules/planning/common/path/path_data.h"
 #include "modules/planning/common/speed_limit.h"
+#include "modules/planning/proto/task_config.pb.h"
 #include "modules/planning/reference_line/reference_line.h"
 
 namespace apollo {
@@ -38,14 +36,13 @@ namespace planning {
 
 class SpeedLimitDecider {
  public:
-  SpeedLimitDecider(const SLBoundary& adc_sl_boundary,
-                    const SpeedBoundsDeciderConfig& config,
+  SpeedLimitDecider(const SpeedBoundsDeciderConfig& config,
                     const ReferenceLine& reference_line,
                     const PathData& path_data);
 
   virtual ~SpeedLimitDecider() = default;
 
-  virtual apollo::common::Status GetSpeedLimits(
+  virtual common::Status GetSpeedLimits(
       const IndexedList<std::string, Obstacle>& obstacles,
       SpeedLimit* const speed_limit_data) const;
 
@@ -57,7 +54,6 @@ class SpeedLimitDecider {
                    std::vector<double>* kappa) const;
 
  private:
-  const SLBoundary& adc_sl_boundary_;
   const SpeedBoundsDeciderConfig& speed_bounds_config_;
   const ReferenceLine& reference_line_;
   const PathData& path_data_;

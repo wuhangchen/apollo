@@ -32,7 +32,9 @@ namespace cyber {
 namespace common {
 
 using ::apollo::cyber::base::AtomicHashMap;
+using ::apollo::cyber::proto::ClockMode;
 using ::apollo::cyber::proto::CyberConfig;
+using ::apollo::cyber::proto::RunMode;
 
 class GlobalData {
  public:
@@ -42,6 +44,9 @@ class GlobalData {
 
   void SetProcessGroup(const std::string& process_group);
   const std::string& ProcessGroup() const;
+
+  void SetComponentNums(const int component_nums);
+  int ComponentNums() const;
 
   void SetSchedName(const std::string& sched_name);
   const std::string& SchedName() const;
@@ -56,6 +61,7 @@ class GlobalData {
   void DisableSimulationMode();
 
   bool IsRealityMode() const;
+  bool IsMockTimeMode() const;
 
   static uint64_t GenerateHashId(const std::string& name) {
     return common::Hash(name);
@@ -88,11 +94,14 @@ class GlobalData {
   int process_id_;
   std::string process_group_;
 
+  int component_nums_ = 0;
+
   // sched policy info
   std::string sched_name_ = "CYBER_DEFAULT";
 
   // run mode
-  bool is_reality_mode_;
+  RunMode run_mode_;
+  ClockMode clock_mode_;
 
   static AtomicHashMap<uint64_t, std::string, 512> node_id_map_;
   static AtomicHashMap<uint64_t, std::string, 256> channel_id_map_;

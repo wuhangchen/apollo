@@ -16,10 +16,11 @@
 
 #include "modules/planning/planner/rtk/rtk_replay_planner.h"
 
+#include <memory>
 #include <utility>
 
+#include "absl/strings/str_split.h"
 #include "cyber/common/log.h"
-#include "modules/common/util/string_tokenizer.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/planning/common/planning_gflags.h"
 
@@ -30,7 +31,9 @@ using apollo::common::ErrorCode;
 using apollo::common::Status;
 using apollo::common::TrajectoryPoint;
 
-RTKReplayPlanner::RTKReplayPlanner() {
+RTKReplayPlanner::RTKReplayPlanner(
+    const std::shared_ptr<DependencyInjector>& injector)
+    : PlannerWithReferenceLine(injector) {
   ReadTrajectoryFile(FLAGS_rtk_trajectory_filename);
 }
 
@@ -141,7 +144,8 @@ void RTKReplayPlanner::ReadTrajectoryFile(const std::string& filename) {
       break;
     }
 
-    auto tokens = apollo::common::util::StringTokenizer::Split(line, "\t ");
+    const std::vector<std::string> tokens =
+        absl::StrSplit(line, absl::ByAnyChar("\t "));
     if (tokens.size() < 11) {
       AERROR << "RTKReplayPlanner parse line failed; the data dimension does "
                 "not match.";

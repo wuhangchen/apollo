@@ -16,6 +16,7 @@
 #include "modules/perception/fusion/lib/data_association/hm_data_association/hm_tracks_objects_match.h"
 
 #include <map>
+#include <numeric>
 #include <utility>
 
 #include "modules/perception/common/graph/secure_matrix.h"
@@ -265,8 +266,7 @@ void HMTrackersObjectsAssociation::ComputeDistance(
           dist_score = track_object_distance_.ComputeLidarCameraSimilarity(
               lidar_object, sensor_objects[measurement_ind_l2g[j]],
               IsLidar(sensor_objects[measurement_ind_l2g[j]]));
-        }
-        if (radar_object != nullptr) {
+        } else if (radar_object != nullptr) {
           dist_score = track_object_distance_.ComputeRadarCameraSimilarity(
               radar_object, sensor_objects[measurement_ind_l2g[j]]);
         }

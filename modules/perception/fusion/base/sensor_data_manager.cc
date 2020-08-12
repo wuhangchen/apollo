@@ -15,6 +15,7 @@
  *****************************************************************************/
 #include "modules/perception/fusion/base/sensor_data_manager.h"
 
+#include <algorithm>
 #include <utility>
 
 #include "cyber/common/log.h"
@@ -51,7 +52,7 @@ void SensorDataManager::AddSensorMeasurements(
       AERROR << "Failed to find sensor " << sensor_id << " in sensor manager.";
       return;
     }
-    sensor_ptr = std::make_shared<Sensor>(Sensor(sensor_info));
+    sensor_ptr.reset(new Sensor(sensor_info));
     sensors_.emplace(sensor_id, sensor_ptr);
   } else {
     sensor_ptr = it->second;
@@ -108,13 +109,10 @@ void SensorDataManager::GetLatestFrames(
     return;
   }
 
-  for (size_t i = 0; i < frames->size() - 1; ++i) {
-    for (size_t j = i + 1; j < frames->size(); ++j) {
-      if ((*frames)[j]->GetTimestamp() < (*frames)[i]->GetTimestamp()) {
-        std::swap((*frames)[j], (*frames)[i]);
-      }
-    }
-  }
+  std::sort(frames->begin(), frames->end(),
+            [](const SensorFramePtr& p1, const SensorFramePtr& p2) {
+              return p1->GetTimestamp() < p2->GetTimestamp();
+            });
 }
 
 bool SensorDataManager::GetPose(const std::string& sensor_id, double timestamp,

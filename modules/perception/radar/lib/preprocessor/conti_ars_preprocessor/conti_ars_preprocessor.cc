@@ -14,7 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 #include "modules/perception/radar/lib/preprocessor/conti_ars_preprocessor/conti_ars_preprocessor.h"
-#include "modules/perception/lib/utils/perf.h"
+#include "modules/common/util/perf_util.h"
 
 namespace apollo {
 namespace perception {
@@ -26,9 +26,9 @@ int ContiArsPreprocessor::local2global_[ORIGIN_CONTI_MAX_ID_NUM] = {0};
 bool ContiArsPreprocessor::Init() {
   std::string model_name = "ContiArsPreprocessor";
   const lib::ModelConfig* model_config = nullptr;
-  CHECK(lib::ConfigManager::Instance()->GetModelConfig(model_name,
-                                                       &model_config));
-  CHECK(model_config->get_value("delay_time", &delay_time_));
+  ACHECK(lib::ConfigManager::Instance()->GetModelConfig(model_name,
+                                                        &model_config));
+  ACHECK(model_config->get_value("delay_time", &delay_time_));
   return true;
 }
 
@@ -36,7 +36,7 @@ bool ContiArsPreprocessor::Preprocess(
     const drivers::ContiRadar& raw_obstacles,
     const PreprocessorOptions& options,
     drivers::ContiRadar* corrected_obstacles) {
-  PERCEPTION_PERF_FUNCTION();
+  PERF_FUNCTION();
   SkipObjects(raw_obstacles, corrected_obstacles);
   ExpandIds(corrected_obstacles);
   CorrectTime(corrected_obstacles);

@@ -17,32 +17,30 @@
 /**
  * @file
  **/
-#include <string>
-#include <vector>
-
 #include "modules/planning/scenarios/stop_sign/unprotected/stage_creep.h"
 
-#include "modules/perception/proto/perception_obstacle.pb.h"
+#include <string>
 
 #include "cyber/common/log.h"
-#include "modules/common/time/time.h"
+#include "cyber/time/clock.h"
 #include "modules/common/vehicle_state/vehicle_state_provider.h"
 #include "modules/map/pnc_map/path.h"
+#include "modules/perception/proto/perception_obstacle.pb.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/planning_context.h"
 #include "modules/planning/common/speed_profile_generator.h"
 #include "modules/planning/common/util/util.h"
 #include "modules/planning/scenarios/util/util.h"
-#include "modules/planning/tasks/deciders/decider_creep.h"
+#include "modules/planning/tasks/deciders/creep_decider/creep_decider.h"
 
 namespace apollo {
 namespace planning {
 namespace scenario {
 namespace stop_sign {
 
-using common::TrajectoryPoint;
-using common::time::Clock;
-using hdmap::PathOverlap;
+using apollo::common::TrajectoryPoint;
+using apollo::cyber::Clock;
+using apollo::hdmap::PathOverlap;
 
 Stage::StageStatus StopSignUnprotectedStageCreep::Process(
     const TrajectoryPoint& planning_init_point, Frame* frame) {
@@ -81,7 +79,7 @@ Stage::StageStatus StopSignUnprotectedStageCreep::Process(
   const double wait_time =
       Clock::NowInSeconds() - GetContext()->creep_start_time;
   const double timeout_sec = scenario_config_.creep_timeout_sec();
-  auto* task = dynamic_cast<DeciderCreep*>(FindTask(TaskConfig::DECIDER_CREEP));
+  auto* task = dynamic_cast<CreepDecider*>(FindTask(TaskConfig::CREEP_DECIDER));
 
   if (task == nullptr) {
     AERROR << "task is nullptr";
@@ -102,11 +100,6 @@ Stage::StageStatus StopSignUnprotectedStageCreep::Process(
                            wait_time, timeout_sec)) {
     return FinishStage();
   }
-
-  // set param for PROCEED_WITH_CAUTION_SPEED
-  // dynamic_cast<DeciderCreep*>(FindTask(TaskConfig::DECIDER_CREEP))
-  //    ->SetProceedWithCautionSpeedParam(*frame, reference_line_info,
-  //                                      stop_sign_end_s);
 
   return Stage::RUNNING;
 }

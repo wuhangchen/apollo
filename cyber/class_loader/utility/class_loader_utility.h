@@ -14,12 +14,12 @@
  * limitations under the License.
  *****************************************************************************/
 
-#ifndef CYBER_CLASS_LOADER_CLASS_LOADER_UTILITY_H_
-#define CYBER_CLASS_LOADER_CLASS_LOADER_UTILITY_H_
+#ifndef CYBER_CLASS_LOADER_UTILITY_CLASS_LOADER_UTILITY_H_
+#define CYBER_CLASS_LOADER_UTILITY_CLASS_LOADER_UTILITY_H_
 
-#include <Poco/SharedLibrary.h>
 #include <cassert>
 #include <cstdio>
+
 #include <map>
 #include <memory>
 #include <mutex>
@@ -27,6 +27,8 @@
 #include <typeinfo>
 #include <utility>
 #include <vector>
+
+#include "Poco/SharedLibrary.h"
 
 #include "cyber/class_loader/utility/class_factory.h"
 #include "cyber/common/log.h"
@@ -127,8 +129,9 @@ std::vector<std::string> GetValidClassNames(ClassLoader* loader) {
   return classes;
 }
 
-}  // End namespace utility
-}  // End namespace class_loader
+}  // namespace utility
+}  // namespace class_loader
 }  // namespace cyber
 }  // namespace apollo
-#endif  // CYBER_CLASS_LOADER_CLASS_LOADER_UTILITY_H_
+
+#endif  // CYBER_CLASS_LOADER_UTILITY_CLASS_LOADER_UTILITY_H_

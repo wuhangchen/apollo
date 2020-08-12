@@ -20,10 +20,9 @@
 
 #pragma once
 
-#include "modules/planning/proto/decider_config.pb.h"
+#include <memory>
 
 #include "cyber/common/macros.h"
-
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/reference_line_info.h"
 #include "modules/planning/tasks/deciders/decider.h"
@@ -33,17 +32,30 @@ namespace planning {
 
 class OpenSpacePreStopDecider : public Decider {
  public:
-  explicit OpenSpacePreStopDecider(const TaskConfig& config);
+  OpenSpacePreStopDecider(const TaskConfig& config,
+                          const std::shared_ptr<DependencyInjector>& injector);
 
  private:
   apollo::common::Status Process(
       Frame* frame, ReferenceLineInfo* reference_line_info) override;
 
-  void CheckOpenSpacePreStop(Frame* const frame,
-                             ReferenceLineInfo* const reference_line_info);
+  bool CheckParkingSpotPreStop(Frame* const frame,
+                               ReferenceLineInfo* const reference_line_info,
+                               double* target_s);
+
+  bool CheckPullOverPreStop(Frame* const frame,
+                            ReferenceLineInfo* const reference_line_info,
+                            double* target_s);
+
+  void SetParkingSpotStopFence(const double target_s, Frame* const frame,
+                               ReferenceLineInfo* const reference_line_info);
+
+  void SetPullOverStopFence(const double target_s, Frame* const frame,
+                            ReferenceLineInfo* const reference_line_info);
 
  private:
-  static constexpr const char* OPEN_SPACE_VO_ID_PREFIX = "OP_";
+  static constexpr const char* OPEN_SPACE_STOP_ID = "OPEN_SPACE_PRE_STOP";
+  OpenSpacePreStopDeciderConfig open_space_pre_stop_decider_config_;
 };
 
 }  // namespace planning

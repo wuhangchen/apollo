@@ -19,15 +19,18 @@
  */
 
 #include "modules/planning/open_space/trajectory_smoother/distance_approach_problem.h"
+
 #include <string>
 #include <unordered_map>
+
+#include "cyber/time/time.h"
 
 namespace apollo {
 namespace planning {
 
 DistanceApproachProblem::DistanceApproachProblem(
     const PlannerOpenSpaceConfig& planner_open_space_config) {
-  planner_open_space_config_.CopyFrom(planner_open_space_config);
+  planner_open_space_config_ = planner_open_space_config;
 }
 
 bool DistanceApproachProblem::Solve(
@@ -35,8 +38,9 @@ bool DistanceApproachProblem::Solve(
     const Eigen::MatrixXd& last_time_u, const size_t horizon, const double ts,
     const Eigen::MatrixXd& ego, const Eigen::MatrixXd& xWS,
     const Eigen::MatrixXd& uWS, const Eigen::MatrixXd& l_warm_up,
-    const Eigen::MatrixXd& n_warm_up, const std::vector<double>& XYbounds,
-    const size_t obstacles_num, const Eigen::MatrixXi& obstacles_edges_num,
+    const Eigen::MatrixXd& n_warm_up, const Eigen::MatrixXd& s_warm_up,
+    const std::vector<double>& XYbounds, const size_t obstacles_num,
+    const Eigen::MatrixXi& obstacles_edges_num,
     const Eigen::MatrixXd& obstacles_A, const Eigen::MatrixXd& obstacles_b,
     Eigen::MatrixXd* state_result, Eigen::MatrixXd* control_result,
     Eigen::MatrixXd* time_result, Eigen::MatrixXd* dual_l_result,
@@ -59,12 +63,35 @@ bool DistanceApproachProblem::Solve(
         horizon, ts, ego, xWS, uWS, l_warm_up, n_warm_up, x0, xF, last_time_u,
         XYbounds, obstacles_edges_num, obstacles_num, obstacles_A, obstacles_b,
         planner_open_space_config_);
+    // TODO(xiaoxq): Disable CUDA in planning temporarily.
+    // } else if (planner_open_space_config_.distance_approach_config()
+    //              .distance_approach_mode() == DISTANCE_APPROACH_IPOPT_CUDA) {
+    //   ptop = new DistanceApproachIPOPTCUDAInterface(
+    //       horizon, ts, ego, xWS, uWS, l_warm_up, n_warm_up, x0, xF,
+    //       last_time_u, XYbounds, obstacles_edges_num, obstacles_num,
+    //       obstacles_A, obstacles_b, planner_open_space_config_);
+    // }
   } else if (planner_open_space_config_.distance_approach_config()
-                 .distance_approach_mode() == DISTANCE_APPROACH_IPOPT_CUDA) {
-    ptop = new DistanceApproachIPOPTCUDAInterface(
+                 .distance_approach_mode() ==
+             DISTANCE_APPROACH_IPOPT_FIXED_DUAL) {
+    ptop = new DistanceApproachIPOPTFixedDualInterface(
         horizon, ts, ego, xWS, uWS, l_warm_up, n_warm_up, x0, xF, last_time_u,
         XYbounds, obstacles_edges_num, obstacles_num, obstacles_A, obstacles_b,
         planner_open_space_config_);
+  } else if (planner_open_space_config_.distance_approach_config()
+                 .distance_approach_mode() ==
+             DISTANCE_APPROACH_IPOPT_RELAX_END) {
+    ptop = new DistanceApproachIPOPTRelaxEndInterface(
+        horizon, ts, ego, xWS, uWS, l_warm_up, n_warm_up, x0, xF, last_time_u,
+        XYbounds, obstacles_edges_num, obstacles_num, obstacles_A, obstacles_b,
+        planner_open_space_config_);
+  } else if (planner_open_space_config_.distance_approach_config()
+                 .distance_approach_mode() ==
+             DISTANCE_APPROACH_IPOPT_RELAX_END_SLACK) {
+    ptop = new DistanceApproachIPOPTRelaxEndSlackInterface(
+        horizon, ts, ego, xWS, uWS, l_warm_up, n_warm_up, s_warm_up, x0, xF,
+        last_time_u, XYbounds, obstacles_edges_num, obstacles_num, obstacles_A,
+        obstacles_b, planner_open_space_config_);
   }
 
   Ipopt::SmartPtr<Ipopt::TNLP> problem = ptop;
@@ -127,7 +154,7 @@ bool DistanceApproachProblem::Solve(
 
   Ipopt::ApplicationReturnStatus status = app->Initialize();
   if (status != Ipopt::Solve_Succeeded) {
-    AERROR << "*** Distiance Approach problem error during initialization!";
+    AERROR << "*** Distance Approach problem error during initialization!";
     return false;
   }
 
@@ -145,8 +172,8 @@ bool DistanceApproachProblem::Solve(
 
     auto t_end = cyber::Time::Now().ToSecond();
 
-    AINFO << "DistanceApproachProblem solving time in second : "
-          << t_end - t_start;
+    ADEBUG << "DistanceApproachProblem solving time in second : "
+           << t_end - t_start;
   } else {
     /*
       return detailed failure information,

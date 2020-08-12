@@ -13,9 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+#pragma once
+
 #include <string>
 
+#include "pcl/filters/voxel_grid.h"
 #include "pcl/io/pcd_io.h"
+#include "pcl/point_types.h"
 
 #include "modules/perception/base/point_cloud.h"
 #include "modules/perception/lidar/common/lidar_log.h"
@@ -24,11 +28,16 @@ namespace apollo {
 namespace perception {
 namespace lidar {
 
+typedef pcl::PointXYZRGB CPoint;
+typedef pcl::PointCloud<CPoint> CPointCloud;
+typedef pcl::PointCloud<CPoint>::Ptr CPointCloudPtr;
+typedef pcl::PointCloud<CPoint>::ConstPtr CPointCloudConstPtr;
+
 struct PCLPointXYZIT {
   float x;
   float y;
   float z;
-  uint8_t intensity;
+  std::uint8_t intensity;
   double timestamp;
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
@@ -41,7 +50,7 @@ struct PCLPointXYZL {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 } EIGEN_ALIGN16;
 
-static bool LoadPCLPCD(const std::string& file_path,
+inline bool LoadPCLPCD(const std::string& file_path,
                        base::PointFCloud* cloud_out) {
   pcl::PointCloud<PCLPointXYZIT> org_cloud;
   if (pcl::io::loadPCDFile(file_path, org_cloud) < 0) {
@@ -82,16 +91,55 @@ static bool LoadPCLPCD(const std::string& file_path,
 //   return true;
 // }
 //
+
+template <typename PointT>
+inline void TransformToPCLXYZI(
+    const base::AttributePointCloud<PointT>& org_cloud,
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& out_cloud_ptr) {
+  for (size_t i = 0; i < org_cloud.size(); ++i) {
+    PointT pt = org_cloud.at(i);
+    pcl::PointXYZI point;
+    point.x = static_cast<float>(pt.x);
+    point.y = static_cast<float>(pt.y);
+    point.z = static_cast<float>(pt.z);
+    point.intensity = static_cast<float>(pt.intensity);
+    out_cloud_ptr->push_back(point);
+  }
+}
+
+inline void TransformFromPCLXYZI(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& org_cloud_ptr,
+    const base::PointFCloudPtr& out_cloud_ptr) {
+  for (size_t i = 0; i < org_cloud_ptr->size(); ++i) {
+    const auto& pt = org_cloud_ptr->at(i);
+    base::PointF point;
+    point.x = pt.x;
+    point.y = pt.y;
+    point.z = pt.z;
+    point.intensity = pt.intensity;
+    out_cloud_ptr->push_back(point);
+  }
+}
+
+inline void DownSampleCloudByVoxelGrid(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud_ptr,
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& filtered_cloud_ptr,
+    float lx = 0.01f, float ly = 0.01f, float lz = 0.01f) {
+  pcl::VoxelGrid<pcl::PointXYZI> voxel_grid;
+  voxel_grid.setInputCloud(cloud_ptr);
+  voxel_grid.setLeafSize(lx, ly, lz);
+  voxel_grid.filter(*filtered_cloud_ptr);
+}
+
 }  // namespace lidar
 }  // namespace perception
 }  // namespace apollo
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(apollo::perception::lidar::PCLPointXYZIT,
                                   (float, x, x)(float, y, y)(float, z, z)(
-                                      uint8_t, intensity,
+                                      std::uint8_t, intensity,
                                       intensity)(double, timestamp, timestamp))
 
 POINT_CLOUD_REGISTER_POINT_STRUCT(apollo::perception::lidar::PCLPointXYZL,
-                                  (float, x, x)(float, y, y)(float, z,
-                                                             z)(uint32_t, label,
-                                                                label))
+                                  (float, x, x)(float, y, y)(float, z, z)(
+                                      std::uint32_t, label, label))

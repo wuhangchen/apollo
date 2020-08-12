@@ -23,7 +23,6 @@
 #include <vector>
 
 #include "Eigen/Core"
-
 #include "modules/common/math/vec2d.h"
 #include "modules/planning/math/smoothing_spline/affine_constraint.h"
 #include "modules/planning/math/smoothing_spline/spline_2d.h"
@@ -81,16 +80,16 @@ class Spline2dConstraint {
                                          const double dddy);
   bool AddPointAngleConstraint(const double t, const double angle);
 
-  // guarantee upto values are joint
+  // guarantee up to values are joint
   bool AddSmoothConstraint();
 
-  // guarantee upto derivative are joint
+  // guarantee up to derivative are joint
   bool AddDerivativeSmoothConstraint();
 
-  // guarantee upto second order derivative are joint
+  // guarantee up to second order derivative are joint
   bool AddSecondDerivativeSmoothConstraint();
 
-  // guarantee upto third order derivative are joint
+  // guarantee up to third order derivative are joint
   bool AddThirdDerivativeSmoothConstraint();
 
   /**

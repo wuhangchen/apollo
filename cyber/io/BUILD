@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -49,7 +50,8 @@ cc_test(
     srcs = ["poller_test.cc"],
     deps = [
         ":poller",
-        "@gtest",
+        "//cyber:cyber_core",
+        "@com_google_googletest//:gtest",
     ],
 )
 

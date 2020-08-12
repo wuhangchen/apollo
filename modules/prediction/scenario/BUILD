@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -6,6 +7,9 @@ cc_library(
     name = "scenario_manager",
     srcs = ["scenario_manager.cc"],
     hdrs = ["scenario_manager.h"],
+    copts = [
+        "-DMODULE_NAME=\\\"prediction\\\"",
+    ],
     deps = [
         "//modules/prediction/scenario/analyzer:scenario_analyzer",
         "//modules/prediction/scenario/feature_extractor",

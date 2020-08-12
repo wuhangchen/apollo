@@ -16,6 +16,8 @@
 
 #include "cyber/timer/timer.h"
 
+#include <cmath>
+
 #include "cyber/common/global_data.h"
 
 namespace apollo {
@@ -60,55 +62,65 @@ bool Timer::InitTimerTask() {
   task_.reset(new TimerTask(timer_id_));
   task_->interval_ms = timer_opt_.period;
   task_->next_fire_duration_ms = task_->interval_ms;
-
   if (timer_opt_.oneshot) {
-    task_->callback = [this](const uint64_t index) {
-      (void)index;
-      this->timer_opt_.callback();
+    std::weak_ptr<TimerTask> task_weak_ptr = task_;
+    task_->callback = [callback = this->timer_opt_.callback, task_weak_ptr]() {
+      auto task = task_weak_ptr.lock();
+      if (task) {
+        std::lock_guard<std::mutex> lg(task->mutex);
+        callback();
+      }
     };
   } else {
     std::weak_ptr<TimerTask> task_weak_ptr = task_;
-    task_->callback = [this, task_weak_ptr](const uint64_t index) {
-      auto start = std::chrono::steady_clock::now();
-      this->timer_opt_.callback();
-      auto end = std::chrono::steady_clock::now();
-      auto execute_time = end - start;
-      uint64_t execute_time_ms =
-          std::chrono::duration_cast<std::chrono::milliseconds>(execute_time)
-              .count();
-      uint64_t execute_time_ns =
-          std::chrono::duration_cast<std::chrono::nanoseconds>(execute_time)
-              .count();
-      int64_t accumulated_error_ns =
-          execute_time_ns - execute_time_ms * 1000000;
+    task_->callback = [callback = this->timer_opt_.callback, task_weak_ptr]() {
       auto task = task_weak_ptr.lock();
-      if (task) {
-        if (execute_time_ms >= task->interval_ms) {
-          task->next_fire_duration_ms = 1;
-          this->accumulated_error_ns_ +=
-              execute_time_ns + 1000000 - task->interval_ms * 1000000;
-        } else {
-          if (this->accumulated_error_ns_ > 1000000) {
-            if (task->interval_ms - execute_time_ms == 1) {
-              task->next_fire_duration_ms = 1;
-              this->accumulated_error_ns_ += accumulated_error_ns;
-            } else {
-              task->next_fire_duration_ms =
-                  task->interval_ms - execute_time_ms - 1;
-              this->accumulated_error_ns_ -= 1000000 - accumulated_error_ns;
-            }
-
-          } else if (this->accumulated_error_ns_ < -1000000) {
-            task->next_fire_duration_ms =
-                task->interval_ms - execute_time_ms + 1;
-            this->accumulated_error_ns_ += 1000000 + accumulated_error_ns;
-          } else {
-            task->next_fire_duration_ms = task->interval_ms - execute_time_ms;
-            this->accumulated_error_ns_ += accumulated_error_ns;
-          }
-        }
-        this->timing_wheel_->AddTask(task, index);
+      if (!task) {
+        return;
       }
+      std::lock_guard<std::mutex> lg(task->mutex);
+      auto start = Time::MonoTime().ToNanosecond();
+      callback();
+      auto end = Time::MonoTime().ToNanosecond();
+      uint64_t execute_time_ns = end - start;
+      uint64_t execute_time_ms =
+#if defined(__aarch64__)
+          ::llround(static_cast<double>(execute_time_ns) / 1e6);
+#else
+          std::llround(static_cast<double>(execute_time_ns) / 1e6);
+#endif
+      if (task->last_execute_time_ns == 0) {
+        task->last_execute_time_ns = start;
+      } else {
+        task->accumulated_error_ns +=
+            start - task->last_execute_time_ns - task->interval_ms * 1000000;
+      }
+      ADEBUG << "start: " << start << "\t last: " << task->last_execute_time_ns
+             << "\t execut time:" << execute_time_ms
+             << "\t accumulated_error_ns: " << task->accumulated_error_ns;
+      task->last_execute_time_ns = start;
+      if (execute_time_ms >= task->interval_ms) {
+        task->next_fire_duration_ms = TIMER_RESOLUTION_MS;
+      } else {
+#if defined(__aarch64__)
+        int64_t accumulated_error_ms = ::llround(
+#else
+        int64_t accumulated_error_ms = std::llround(
+#endif
+            static_cast<double>(task->accumulated_error_ns) / 1e6);
+        if (static_cast<int64_t>(task->interval_ms - execute_time_ms -
+                                 TIMER_RESOLUTION_MS) >= accumulated_error_ms) {
+          task->next_fire_duration_ms =
+              task->interval_ms - execute_time_ms - accumulated_error_ms;
+        } else {
+          task->next_fire_duration_ms = TIMER_RESOLUTION_MS;
+        }
+        ADEBUG << "error ms: " << accumulated_error_ms
+               << "  execute time: " << execute_time_ms
+               << " next fire: " << task->next_fire_duration_ms
+               << " error ns: " << task->accumulated_error_ns;
+      }
+      TimingWheel::Instance()->AddTask(task);
     };
   }
   return true;
@@ -122,15 +134,20 @@ void Timer::Start() {
   if (!started_.exchange(true)) {
     if (InitTimerTask()) {
       timing_wheel_->AddTask(task_);
+      AINFO << "start timer [" << task_->timer_id_ << "]";
     }
   }
 }
 
 void Timer::Stop() {
-  if (started_.exchange(false)) {
-    ADEBUG << "stop timer ";
-    task_.reset();
-    accumulated_error_ns_ = 0;
+  if (started_.exchange(false) && task_) {
+    AINFO << "stop timer, the timer_id: " << timer_id_;
+    // using a shared pointer to hold task_->mutex before task_ reset
+    auto tmp_task = task_;
+    {
+      std::lock_guard<std::mutex> lg(tmp_task->mutex);
+      task_.reset();
+    }
   }
 }
 

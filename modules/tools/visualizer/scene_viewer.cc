@@ -16,9 +16,9 @@
 
 #include "modules/tools/visualizer/scene_viewer.h"
 
-#include <QMessageBox>
-#include <QTimer>
-#include <QWheelEvent>
+#include <QtCore/QTimer>
+#include <QtGui/QWheelEvent>
+#include <QtWidgets/QMessageBox>
 
 #include "modules/tools/visualizer/scene_camera_dialog.h"
 
@@ -221,8 +221,9 @@ void SceneViewer::paintGL() {
 }
 
 void SceneViewer::ChangeCameraType(int index) {
-  if (index < TARGET || index > FREE) return;
-
+  if (index < TARGET || index > FREE) {
+    return;
+  }
   if (index == FREE) {
     current_cameraPtr_ = &free_camera_;
   } else {
@@ -437,7 +438,7 @@ void SceneViewer::mouseReleaseEvent(QMouseEvent *event) {
       camera_dialog_ = new SceneCameraDialog(this);
       if (!camera_dialog_) {
         QMessageBox::warning(this, tr("Error"),
-                             tr("No Enought for creating Camera Dialog!!!"),
+                             tr("No Enough for creating Camera Dialog!!!"),
                              QMessageBox::Ok);
         goto retLabel;
       } else {

@@ -14,13 +14,14 @@
  * limitations under the License.
  *****************************************************************************/
 
+#include "modules/drivers/velodyne/driver/driver.h"
+
 #include <cmath>
 #include <ctime>
 #include <string>
+#include <thread>
 
 #include "cyber/cyber.h"
-
-#include "modules/drivers/velodyne/driver/driver.h"
 #include "modules/drivers/velodyne/proto/config.pb.h"
 #include "modules/drivers/velodyne/proto/velodyne.pb.h"
 
@@ -101,7 +102,8 @@ bool VelodyneDriver::SetBaseTime() {
 bool VelodyneDriver::Poll(const std::shared_ptr<VelodyneScan>& scan) {
   // Allocate a new shared pointer for zero-copy sharing with other nodelets.
   if (basetime_ == 0) {
-    usleep(100);  // waiting for positioning data
+    // waiting for positioning data
+    std::this_thread::sleep_for(std::chrono::microseconds(100));
     AWARN << "basetime is zero";
     return false;
   }
@@ -112,8 +114,8 @@ bool VelodyneDriver::Poll(const std::shared_ptr<VelodyneScan>& scan) {
     return false;  // poll again
   }
 
-  if (scan->firing_pkts_size() <= 0) {
-    AINFO << "Get a empty scan from port: " << config_.firing_data_port();
+  if (scan->firing_pkts().empty()) {
+    AINFO << "Get an empty scan from port: " << config_.firing_data_port();
     return false;
   }
 
@@ -198,7 +200,7 @@ void VelodyneDriver::PollPositioningPacket(void) {
     if (basetime_ == 0 && ret) {
       SetBaseTimeFromNmeaTime(nmea_time, &basetime_);
     } else {
-      usleep(1000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
 }
@@ -209,7 +211,8 @@ void VelodyneDriver::UpdateGpsTopHour(uint32_t current_time) {
     return;
   }
   if (last_gps_time_ > current_time) {
-    if (std::abs(last_gps_time_ - current_time) > 3599000000) {
+    int32_t time_diff = static_cast<int32_t>(last_gps_time_ - current_time);
+    if (time_diff > 3599000000) {
       basetime_ += static_cast<uint64_t>(3600 * 1e6);
       AINFO << "Base time plus 3600s. Model: " << config_.model() << std::fixed
             << ". current:" << current_time << ", last time:" << last_gps_time_;

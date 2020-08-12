@@ -15,7 +15,6 @@
  *****************************************************************************/
 
 #include "gtest/gtest.h"
-
 #include "modules/common/configs/config_gflags.h"
 #include "modules/map/hdmap/hdmap_util.h"
 #include "modules/planning/common/planning_gflags.h"
@@ -33,13 +32,11 @@ class NavigationModeTest : public PlanningTestBase {
  public:
   virtual void SetUp() {
     FLAGS_use_navigation_mode = true;
-    FLAGS_planning_config_file =
-        "modules/planning/conf/planning_config_navi.pb.txt";
     FLAGS_lane_follow_scenario_config_file =
         "modules/planning/conf/lane_follow_scenario_config.pb.txt";
     FLAGS_test_data_dir = "modules/planning/testdata/navigation_mode_test";
     FLAGS_traffic_rule_config_filename =
-        "modules/planning/conf/navi_traffic_rule_config.pb.txt";
+        "modules/planning/conf/traffic_rule_config.pb.txt";
   }
 };
 

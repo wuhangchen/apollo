@@ -25,7 +25,7 @@
 #include "modules/perception/camera/common/camera_frame.h"
 #include "modules/perception/camera/common/data_provider.h"
 #include "modules/perception/camera/lib/interface/base_lane_detector.h"
-#include "modules/perception/camera/lib/lane/common/darkSCNN.pb.h"
+#include "modules/perception/camera/lib/lane/common/proto/darkSCNN.pb.h"
 #include "modules/perception/inference/tensorrt/rt_net.h"
 #include "modules/perception/lib/registerer/registerer.h"
 
@@ -81,7 +81,8 @@ class DarkSCNNLaneDetector : public BaseLaneDetector {
   uint16_t resize_height_;
   uint16_t resize_width_;
   int image_mean_[3];
-
+  std::vector<float> vpt_mean_;
+  std::vector<float> vpt_std_;
   // parameters for network output
   float confidence_threshold_lane_;
   int lane_output_height_;

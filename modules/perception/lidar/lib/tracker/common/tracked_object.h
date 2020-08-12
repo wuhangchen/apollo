@@ -56,6 +56,7 @@ struct TrackedObject {
 
   void ToObject(base::ObjectPtr obj_ptr) const;
 
+  float GetVelThreshold(base::ObjectPtr obj) const;
   // ***************************************************
   // self information from match
   // ***************************************************
@@ -146,7 +147,11 @@ struct TrackedObject {
   Eigen::Vector3d output_center;
   Eigen::Vector3d output_size;
   base::SensorInfo sensor_info;
-};  // struct TrackedObject
+
+  Eigen::Vector3d global_local_offset;
+
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+} EIGEN_ALIGN16;  // struct TrackedObject
 
 typedef std::shared_ptr<TrackedObject> TrackedObjectPtr;
 typedef std::shared_ptr<const TrackedObject> TrackedObjectConstPtr;

@@ -28,12 +28,12 @@ using hdmap::LaneInfo;
 using LaneInfoPtr = std::shared_ptr<const LaneInfo>;
 using JunctionInfoPtr = std::shared_ptr<const JunctionInfo>;
 
-EnvironmentFeatures FeatureExtractor::ExtractEnvironmentFeatures() {
+EnvironmentFeatures FeatureExtractor::ExtractEnvironmentFeatures(
+    ContainerManager* container_manager) {
   EnvironmentFeatures environment_features;
 
-  auto ego_state_container =
-      ContainerManager::Instance()->GetContainer<PoseContainer>(
-          AdapterConfig::LOCALIZATION);
+  auto ego_state_container = container_manager->GetContainer<PoseContainer>(
+      AdapterConfig::LOCALIZATION);
 
   if (ego_state_container == nullptr ||
       ego_state_container->ToPerceptionObstacle() == nullptr) {
@@ -77,7 +77,7 @@ EnvironmentFeatures FeatureExtractor::ExtractEnvironmentFeatures() {
   ExtractNeighborLaneFeatures(&environment_features, ptr_ego_lane,
                               ego_position);
 
-  ExtractFrontJunctionFeatures(&environment_features);
+  ExtractFrontJunctionFeatures(&environment_features, container_manager);
 
   return environment_features;
 }
@@ -86,7 +86,7 @@ void FeatureExtractor::ExtractEgoLaneFeatures(
     EnvironmentFeatures* ptr_environment_features,
     const LaneInfoPtr& ptr_ego_lane, const common::math::Vec2d& ego_position) {
   if (ptr_ego_lane == nullptr) {
-    AERROR << "Ego vehicle is not on any lane.";
+    ADEBUG << "Ego vehicle is not on any lane.";
     return;
   }
   ADEBUG << "Ego vehicle is on lane [" << ptr_ego_lane->id().id() << "]";
@@ -119,7 +119,7 @@ void FeatureExtractor::ExtractNeighborLaneFeatures(
     EnvironmentFeatures* ptr_environment_features,
     const LaneInfoPtr& ptr_ego_lane, const Vec2d& ego_position) {
   if (ptr_ego_lane == nullptr) {
-    AERROR << "Ego vehicle is not on any lane.";
+    ADEBUG << "Ego vehicle is not on any lane.";
     return;
   }
 
@@ -151,9 +151,10 @@ void FeatureExtractor::ExtractNeighborLaneFeatures(
 }
 
 void FeatureExtractor::ExtractFrontJunctionFeatures(
-    EnvironmentFeatures* ptr_environment_features) {
+    EnvironmentFeatures* ptr_environment_features,
+    ContainerManager* container_manager) {
   auto ego_trajectory_container =
-      ContainerManager::Instance()->GetContainer<ADCTrajectoryContainer>(
+      container_manager->GetContainer<ADCTrajectoryContainer>(
           AdapterConfig::PLANNING_TRAJECTORY);
   if (ego_trajectory_container == nullptr) {
     AERROR << "Null ego trajectory container";

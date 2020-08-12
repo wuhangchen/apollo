@@ -22,6 +22,8 @@
 
 #include <algorithm>
 
+#include "absl/strings/str_cat.h"
+
 #include "cyber/common/log.h"
 #include "modules/common/configs/config_gflags.h"
 #include "modules/common/math/angle.h"
@@ -39,7 +41,7 @@ using apollo::common::VehicleState;
 using apollo::common::math::Vec2d;
 
 TrajectoryPoint TrajectoryStitcher::ComputeTrajectoryPointFromVehicleState(
-    const VehicleState& vehicle_state) {
+    const double planning_cycle_time, const VehicleState& vehicle_state) {
   TrajectoryPoint point;
   point.mutable_path_point()->set_s(0.0);
   point.mutable_path_point()->set_x(vehicle_state.x());
@@ -49,7 +51,7 @@ TrajectoryPoint TrajectoryStitcher::ComputeTrajectoryPointFromVehicleState(
   point.mutable_path_point()->set_kappa(vehicle_state.kappa());
   point.set_v(vehicle_state.linear_velocity());
   point.set_a(vehicle_state.linear_acceleration());
-  point.set_relative_time(0.0);
+  point.set_relative_time(planning_cycle_time);
   return point;
 }
 
@@ -57,16 +59,19 @@ std::vector<TrajectoryPoint>
 TrajectoryStitcher::ComputeReinitStitchingTrajectory(
     const double planning_cycle_time, const VehicleState& vehicle_state) {
   TrajectoryPoint reinit_point;
-  constexpr double kEpsilon = 1e-2;
-  if (std::abs(vehicle_state.linear_velocity()) < kEpsilon &&
-      std::abs(vehicle_state.linear_acceleration()) < kEpsilon) {
-    reinit_point = ComputeTrajectoryPointFromVehicleState(vehicle_state);
+  static constexpr double kEpsilon_v = 0.1;
+  static constexpr double kEpsilon_a = 0.4;
+  // TODO(Jinyun/Yu): adjust kEpsilon if corrected IMU acceleration provided
+  if (std::abs(vehicle_state.linear_velocity()) < kEpsilon_v &&
+      std::abs(vehicle_state.linear_acceleration()) < kEpsilon_a) {
+    reinit_point = ComputeTrajectoryPointFromVehicleState(planning_cycle_time,
+                                                          vehicle_state);
   } else {
     VehicleState predicted_vehicle_state;
     predicted_vehicle_state =
         VehicleModel::Predict(planning_cycle_time, vehicle_state);
-    reinit_point =
-        ComputeTrajectoryPointFromVehicleState(predicted_vehicle_state);
+    reinit_point = ComputeTrajectoryPointFromVehicleState(
+        planning_cycle_time, predicted_vehicle_state);
   }
 
   return std::vector<TrajectoryPoint>(1, reinit_point);
@@ -97,7 +102,8 @@ void TrajectoryStitcher::TransformLastPublishedTrajectory(
 
                   auto x_new = cos_theta * x - sin_theta * y + tx;
                   auto y_new = sin_theta * x + cos_theta * y + ty;
-                  auto theta_new = common::math::WrapAngle(theta - theta_diff);
+                  auto theta_new =
+                      common::math::NormalizeAngle(theta - theta_diff);
 
                   p.mutable_path_point()->set_x(x_new);
                   p.mutable_path_point()->set_y(y_new);
@@ -113,7 +119,8 @@ void TrajectoryStitcher::TransformLastPublishedTrajectory(
 std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
     const VehicleState& vehicle_state, const double current_timestamp,
     const double planning_cycle_time, const size_t preserved_points_num,
-    const PublishableTrajectory* prev_trajectory, std::string* replan_reason) {
+    const bool replan_by_offset, const PublishableTrajectory* prev_trajectory,
+    std::string* replan_reason) {
   if (!FLAGS_enable_trajectory_stitcher) {
     *replan_reason = "stitch is disabled by gflag.";
     return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
@@ -175,37 +182,40 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
       prev_trajectory->TrajectoryPointAt(
           static_cast<uint32_t>(position_matched_index)));
 
-  auto lon_diff = time_matched_point.path_point().s() - frenet_sd.first;
-  auto lat_diff = frenet_sd.second;
+  if (replan_by_offset) {
+    auto lon_diff = time_matched_point.path_point().s() - frenet_sd.first;
+    auto lat_diff = frenet_sd.second;
 
-  ADEBUG << "Control lateral diff: " << lat_diff
-         << ", longitudinal diff: " << lon_diff;
+    ADEBUG << "Control lateral diff: " << lat_diff
+           << ", longitudinal diff: " << lon_diff;
 
-  if (std::fabs(lat_diff) > FLAGS_replan_lateral_distance_threshold) {
-    std::string msg(
-        "the distance between matched point and actual position is too "
-        "large. Replan is triggered. lat_diff = " +
-        std::to_string(lat_diff));
-    AERROR << msg;
-    *replan_reason = msg;
-    return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
+    if (std::fabs(lat_diff) > FLAGS_replan_lateral_distance_threshold) {
+      std::string msg(absl::StrCat(
+          "the distance between matched point and actual position is too "
+          "large. Replan is triggered. lat_diff = ",
+          lat_diff));
+      AERROR << msg;
+      *replan_reason = msg;
+      return ComputeReinitStitchingTrajectory(planning_cycle_time,
+                                              vehicle_state);
+    }
+
+    if (std::fabs(lon_diff) > FLAGS_replan_longitudinal_distance_threshold) {
+      std::string msg(absl::StrCat(
+          "the distance between matched point and actual position is too "
+          "large. Replan is triggered. lon_diff = ",
+          lon_diff));
+      AERROR << msg;
+      *replan_reason = msg;
+      return ComputeReinitStitchingTrajectory(planning_cycle_time,
+                                              vehicle_state);
+    }
+  } else {
+    ADEBUG << "replan according to certain amount of lat and lon offset is "
+              "disabled";
   }
 
-  if (std::fabs(lon_diff) > FLAGS_replan_longitudinal_distance_threshold) {
-    std::string msg(
-        "the distance between matched point and actual position is too "
-        "large. Replan is triggered. lon_diff = " +
-        std::to_string(lon_diff));
-    AERROR << msg;
-    *replan_reason = msg;
-    return ComputeReinitStitchingTrajectory(planning_cycle_time, vehicle_state);
-  }
-
-  double forward_rel_time =
-      prev_trajectory
-          ->TrajectoryPointAt(static_cast<uint32_t>(time_matched_index))
-          .relative_time() +
-      planning_cycle_time;
+  double forward_rel_time = veh_rel_time + planning_cycle_time;
 
   size_t forward_time_index =
       prev_trajectory->QueryLowerBoundPoint(forward_rel_time);
@@ -238,10 +248,7 @@ std::vector<TrajectoryPoint> TrajectoryStitcher::ComputeStitchingTrajectory(
 std::pair<double, double> TrajectoryStitcher::ComputePositionProjection(
     const double x, const double y, const TrajectoryPoint& p) {
   Vec2d v(x - p.path_point().x(), y - p.path_point().y());
-  Vec2d n(common::math::cos(
-              common::math::Angle16::from_rad(p.path_point().theta())),
-          common::math::sin(
-              common::math::Angle16::from_rad(p.path_point().theta())));
+  Vec2d n(std::cos(p.path_point().theta()), std::sin(p.path_point().theta()));
 
   std::pair<double, double> frenet_sd;
   frenet_sd.first = v.InnerProd(n) + p.path_point().s();

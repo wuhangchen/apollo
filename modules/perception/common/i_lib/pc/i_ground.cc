@@ -16,7 +16,7 @@
 #include "modules/perception/common/i_lib/pc/i_ground.h"
 
 #include <algorithm>
-#include <cfloat>
+#include <limits>
 
 namespace apollo {
 namespace perception {
@@ -102,7 +102,7 @@ PlaneFitGroundDetector::~PlaneFitGroundDetector() { CleanUp(); }
 // Init the order lookup table
 void PlaneFitGroundDetector::InitOrderTable(const VoxelGridXY<float> *vg,
                                             std::pair<int, int> *order) {
-  std::vector<std::pair<float, int> > map_dist;
+  std::vector<std::pair<float, int>> map_dist;
   float cx = 0.f;
   float cy = 0.f;
   float dist2 = 0.f;
@@ -164,7 +164,7 @@ bool PlaneFitGroundDetector::Init() {
   }
 
   // Init order lookup table
-  order_table_ = IAlloc<std::pair<int, int> >(vg_fine_->NrVoxel());
+  order_table_ = IAlloc<std::pair<int, int>>(vg_fine_->NrVoxel());
   InitOrderTable(vg_coarse_, order_table_);
 
   // ground plane:
@@ -178,8 +178,8 @@ bool PlaneFitGroundDetector::Init() {
   if (!ground_planes_sphe_) {
     return false;
   }
-  ground_z_ = IAlloc2<std::pair<float, bool> >(param_.nr_grids_coarse,
-                                               param_.nr_grids_coarse);
+  ground_z_ = IAlloc2<std::pair<float, bool>>(param_.nr_grids_coarse,
+                                              param_.nr_grids_coarse);
   if (!ground_z_) {
     return false;
   }
@@ -270,7 +270,7 @@ void PlaneFitGroundDetector::CleanUp() {
   }
   IFree2<GroundPlaneLiDAR>(&ground_planes_);
   IFree2<GroundPlaneSpherical>(&ground_planes_sphe_);
-  IFree2<std::pair<float, bool> >(&ground_z_);
+  IFree2<std::pair<float, bool>>(&ground_z_);
   IFree2<PlaneFitPointCandIndices>(&local_candis_);
   IFreeAligned<float>(&pf_threeds_);
   IFreeAligned<char>(&labels_);
@@ -278,7 +278,7 @@ void PlaneFitGroundDetector::CleanUp() {
   IFreeAligned<float>(&sampled_z_values_);
   IFreeAligned<int>(&sampled_indices_);
   IFree2<float>(&pf_thresholds_);
-  IFree<std::pair<int, int> >(&order_table_);
+  IFree<std::pair<int, int>>(&order_table_);
 }
 
 int PlaneFitGroundDetector::CompareZ(const float *point_cloud,
@@ -390,7 +390,7 @@ void PlaneFitGroundDetector::ComputeSignedGroundHeight(
   unsigned int r = 0;
   unsigned int nm1 = param_.nr_grids_coarse - 1;
   for (r = 0; r < nr_points; ++r) {
-    height_above_ground[r] = FLT_MAX;
+    height_above_ground[r] = std::numeric_limits<float>::max();
   }
   ComputeSignedGroundHeightLine(
       point_cloud, ground_planes_[0], ground_planes_[0], ground_planes_[1],
@@ -435,20 +435,20 @@ void PlaneFitGroundDetector::ComputeSignedGroundHeightLine(
     cptr = point_cloud + (nr_point_elements * pos);
     dist[0] = plane[0] != nullptr
                   ? IPlaneToPointSignedDistanceWUnitNorm(plane[0], cptr)
-                  : FLT_MAX;
+                  : std::numeric_limits<float>::max();
     min_abs_dist = IAbs(dist[0]);
     id = 0;
     // for candidates we take min dist:
     if (label) {
       dist[1] = plane[1] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[1], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       dist[2] = plane[2] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[2], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       dist[3] = plane[3] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[3], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       for (i = 1; i < 4; ++i) {
         if (min_abs_dist > IAbs(dist[i])) {
           min_abs_dist = IAbs(dist[i]);
@@ -474,22 +474,22 @@ void PlaneFitGroundDetector::ComputeSignedGroundHeightLine(
       cptr = point_cloud + (nr_point_elements * pos);
       dist[0] = plane[0] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[0], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       min_abs_dist = IAbs(dist[0]);
       id = 0;
       if (label) {
         dist[1] = plane[1] != nullptr
                       ? IPlaneToPointSignedDistanceWUnitNorm(plane[1], cptr)
-                      : FLT_MAX;
+                      : std::numeric_limits<float>::max();
         dist[2] = plane[2] != nullptr
                       ? IPlaneToPointSignedDistanceWUnitNorm(plane[2], cptr)
-                      : FLT_MAX;
+                      : std::numeric_limits<float>::max();
         dist[3] = plane[3] != nullptr
                       ? IPlaneToPointSignedDistanceWUnitNorm(plane[3], cptr)
-                      : FLT_MAX;
+                      : std::numeric_limits<float>::max();
         dist[4] = plane[4] != nullptr
                       ? IPlaneToPointSignedDistanceWUnitNorm(plane[4], cptr)
-                      : FLT_MAX;
+                      : std::numeric_limits<float>::max();
         for (i = 1; i < 5; ++i) {
           if (min_abs_dist > IAbs(dist[i])) {
             min_abs_dist = IAbs(dist[i]);
@@ -513,20 +513,20 @@ void PlaneFitGroundDetector::ComputeSignedGroundHeightLine(
     cptr = point_cloud + (nr_point_elements * pos);
     dist[0] = plane[0] != nullptr
                   ? IPlaneToPointSignedDistanceWUnitNorm(plane[0], cptr)
-                  : FLT_MAX;
+                  : std::numeric_limits<float>::max();
     min_abs_dist = IAbs(dist[0]);
     id = 0;
     // for candidates we take min dist:
     if (label) {
       dist[1] = plane[1] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[1], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       dist[2] = plane[2] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[2], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       dist[3] = plane[3] != nullptr
                     ? IPlaneToPointSignedDistanceWUnitNorm(plane[3], cptr)
-                    : FLT_MAX;
+                    : std::numeric_limits<float>::max();
       for (i = 1; i < 4; ++i) {
         if (min_abs_dist > IAbs(dist[i])) {
           min_abs_dist = IAbs(dist[i]);
@@ -621,7 +621,7 @@ int PlaneFitGroundDetector::FitGrid(const float *point_cloud,
   groundplane->ForceInvalid();
   // not enough samples, failed and return
   if (candi->Size() < param_.nr_inliers_min_threshold) {
-    return (0);
+    return 0;
   }
   GroundPlaneLiDAR plane;
   float ptp_dist = 0.0f;
@@ -698,12 +698,12 @@ int PlaneFitGroundDetector::FitGrid(const float *point_cloud,
   }
   // check if meet the inlier number requirement
   if (!groundplane->IsValid()) {
-    return (0);
+    return 0;
   }
   if (groundplane->GetNrSupport() <
       static_cast<int>(param_.nr_inliers_min_threshold)) {
     groundplane->ForceInvalid();
-    return (0);
+    return 0;
   }
   // iterate samples and check if the point to plane distance is within
   // threshold
@@ -726,7 +726,7 @@ int PlaneFitGroundDetector::FitGrid(const float *point_cloud,
   // std::cout << groundplane->GetDegreeNormalToZ() << std::endl;
   if (groundplane->GetDegreeNormalToZ() > param_.planefit_orien_threshold) {
     groundplane->ForceInvalid();
-    return (0);
+    return 0;
   }
   return nr_inliers;
 }
@@ -763,7 +763,7 @@ int PlaneFitGroundDetector::Fit() {
 //  Filter candidates by neighbors
 int PlaneFitGroundDetector::FilterCandidates(
     int r, int c, const float *point_cloud, PlaneFitPointCandIndices *candi,
-    std::vector<std::pair<int, int> > *neighbors,
+    std::vector<std::pair<int, int>> *neighbors,
     unsigned int nr_point_element) {
   float avg_z = 0.f;
   int count = 0;
@@ -816,24 +816,29 @@ int PlaneFitGroundDetector::FitGridWithNeighbors(
   // not enough samples, failed and return
 
   PlaneFitPointCandIndices &candi = local_candis_[r][c];
-  std::vector<std::pair<int, int> > neighbors;
+  std::vector<std::pair<int, int>> neighbors;
   GetNeighbors(r, c, param_.nr_grids_coarse, param_.nr_grids_coarse,
                &neighbors);
   FilterCandidates(r, c, point_cloud, &candi, &neighbors, nr_point_element);
 
   if (candi.Size() < param_.nr_inliers_min_threshold) {
-    return (0);
+    return 0;
   }
 
   GroundPlaneLiDAR plane;
   int kNr_iter =
       param_.nr_ransac_iter_threshold + static_cast<int>(neighbors.size());
+  //  check hypothesis initialized correct or not
+  if (kNr_iter < 1) {
+    return 0;
+  }
   GroundPlaneLiDAR hypothesis[kNr_iter];
+
   float ptp_dist = 0.0f;
-  int best = -1;
+  int best = 0;
   int nr_inliers = 0;
   int nr_inliers_best = -1;
-  float angle_best = FLT_MAX;
+  float angle_best = std::numeric_limits<float>::max();
 
   int rseed = I_DEFAULT_SEED;
   int indices_trial[] = {0, 0, 0};
@@ -934,12 +939,12 @@ int PlaneFitGroundDetector::FitGridWithNeighbors(
 
   // check if meet the inlier number requirement
   if (!groundplane->IsValid()) {
-    return (0);
+    return 0;
   }
   if (groundplane->GetNrSupport() <
       static_cast<int>(param_.nr_inliers_min_threshold)) {
     groundplane->ForceInvalid();
-    return (0);
+    return 0;
   }
   // iterate samples and check if the point to plane distance is within
   // threshold
@@ -966,7 +971,7 @@ int PlaneFitGroundDetector::FitGridWithNeighbors(
 
   if (groundplane->GetDegreeNormalToZ() > param_.planefit_orien_threshold) {
     groundplane->ForceInvalid();
-    return (0);
+    return 0;
   }
 
   const auto &voxel_cur = (*vg_coarse_)(r, c);
@@ -984,7 +989,7 @@ int PlaneFitGroundDetector::FitGridWithNeighbors(
 
 float PlaneFitGroundDetector::CalculateAngleDist(
     const GroundPlaneLiDAR &plane,
-    const std::vector<std::pair<int, int> > &neighbors) {
+    const std::vector<std::pair<int, int>> &neighbors) {
   float angle_dist = 0.0f;
   int count = 0;
   unsigned int j = 0;
@@ -1037,7 +1042,7 @@ int PlaneFitGroundDetector::FitInOrder() {
 
 void PlaneFitGroundDetector::GetNeighbors(
     int r, int c, int rows, int cols,
-    std::vector<std::pair<int, int> > *neighbors) {
+    std::vector<std::pair<int, int>> *neighbors) {
   int left = IMax(0, c - 1);
   int right = IMin(cols - 1, c + 1);
   int up = IMax(0, r - 1);
@@ -1248,11 +1253,13 @@ bool PlaneFitGroundDetector::Detect(const float *point_cloud,
   unsigned int r = 0;
   unsigned int c = 0;
   // Filter to generate plane fitting candidates
-  // int nr_candis = Filter();
+  // int nr_candis =
+  Filter();
   // std::cout << "# of plane candidates: " << nr_candis << std::endl;
   //  Fit local plane using ransac
   // nr_valid_grid = Fit();
-  // int nr_valid_grid = FitInOrder();
+  // int nr_valid_grid =
+  FitInOrder();
   // std::cout << "# of valid plane geometry (fitting): " << nr_valid_grid <<
   // std::endl;
   // Smooth plane using neighborhood information:
@@ -1289,15 +1296,17 @@ const GroundPlaneLiDAR *PlaneFitGroundDetector::GetGroundPlane(int r,
   return ground_planes_ != nullptr ? ground_planes_[r] + c : nullptr;
 }
 
-const unsigned int PlaneFitGroundDetector::GetGridDimX() const {
+unsigned int PlaneFitGroundDetector::GetGridDimX() const {
   return vg_coarse_->NrVoxelX();
 }
 
-const unsigned int PlaneFitGroundDetector::GetGridDimY() const {
+unsigned int PlaneFitGroundDetector::GetGridDimY() const {
   return vg_coarse_->NrVoxelY();
 }
 
-float PlaneFitGroundDetector::GetUnknownHeight() { return (FLT_MAX); }
+float PlaneFitGroundDetector::GetUnknownHeight() {
+  return std::numeric_limits<float>::max();
+}
 
 PlaneFitPointCandIndices **PlaneFitGroundDetector::GetCandis() const {
   return local_candis_;

@@ -39,7 +39,6 @@ class SunnyvaleLoopTest : public PlanningTestBase {
     FLAGS_planning_upper_speed_limit = 12.5;
     FLAGS_use_multi_thread_to_add_obstacles = false;
 
-    FLAGS_enable_scenario_side_pass = false;
     FLAGS_enable_scenario_stop_sign = false;
     FLAGS_enable_scenario_traffic_light = false;
     FLAGS_enable_rss_info = false;
@@ -188,6 +187,7 @@ TEST_F(SunnyvaleLoopTest, rightturn_with_red_light) {
 TEST_F(SunnyvaleLoopTest, change_lane) {
   std::string seq_num = "9";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
+  FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
   PlanningTestBase::SetUp();
@@ -200,6 +200,7 @@ TEST_F(SunnyvaleLoopTest, change_lane) {
 TEST_F(SunnyvaleLoopTest, mission_complete) {
   std::string seq_num = "10";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
+  FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
   PlanningTestBase::SetUp();
@@ -228,6 +229,7 @@ TEST_F(SunnyvaleLoopTest, qp_path_failure) {
   std::string seq_num = "12";
   FLAGS_reckless_change_lane = true;
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";
+  FLAGS_test_prediction_file = seq_num + "_prediction.pb.txt";
   FLAGS_test_localization_file = seq_num + "_localization.pb.txt";
   FLAGS_test_routing_response_file = seq_num + "_routing.pb.txt";
   PlanningTestBase::SetUp();
@@ -249,6 +251,7 @@ TEST_F(SunnyvaleLoopTest, change_lane_failback) {
     AERROR << "Could not find lane 2020_1_-2 on map " << hdmap::BaseMapFile();
     return;
   }
+
   std::string seq_num = "13";
   FLAGS_reckless_change_lane = true;
   FLAGS_test_chassis_file = seq_num + "_chassis.pb.txt";

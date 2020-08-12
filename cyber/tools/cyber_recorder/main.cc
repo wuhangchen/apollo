@@ -15,7 +15,7 @@
  *****************************************************************************/
 
 #include <getopt.h>
-#include <stddef.h>
+#include <cstddef>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -118,11 +118,11 @@ void DisplayUsage(const std::string& binary, const std::string& command,
                   << " rate by FACTOR" << std::endl;
         break;
       case 'b':
-        std::cout << "\t-b, --begin <2018-07-01 00:00:00>\t" << command
+        std::cout << "\t-b, --begin 2018-07-01-00:00:00\t" << command
                   << " the record begin at" << std::endl;
         break;
       case 'e':
-        std::cout << "\t-e, --end <2018-07-01 00:01:00>\t\t" << command
+        std::cout << "\t-e, --end 2018-07-01-00:01:00\t\t" << command
                   << " the record end at" << std::endl;
         break;
       case 's':
@@ -196,7 +196,7 @@ int main(int argc, char** argv) {
   bool opt_loop = false;
   float opt_rate = 1.0f;
   uint64_t opt_begin = 0;
-  uint64_t opt_end = UINT64_MAX;
+  uint64_t opt_end = std::numeric_limits<uint64_t>::max();
   uint64_t opt_start = 0;
   uint64_t opt_delay = 0;
   uint32_t opt_preload = 3;
@@ -414,7 +414,7 @@ int main(int argc, char** argv) {
       return -1;
     }
     if (opt_output_vec.size() > 1) {
-      std::cout << "TOO many ouput file option (-o)." << std::endl;
+      std::cout << "TOO many output file option (-o)." << std::endl;
       return -1;
     }
     if (opt_output_vec.empty()) {

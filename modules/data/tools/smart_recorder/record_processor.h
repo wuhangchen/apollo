@@ -17,9 +17,7 @@
 #pragma once
 
 #include <memory>
-#include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "cyber/record/record_message.h"
@@ -31,32 +29,27 @@
 namespace apollo {
 namespace data {
 
-using cyber::record::RecordMessage;
-using cyber::record::RecordWriter;
-
 /**
  * @class RecordProcessor
  * @brief Process messages and apply the rules based on configured triggers
  */
 class RecordProcessor {
  public:
-  RecordProcessor(std::string source_record_dir,
-                  std::string restored_output_dir);
-  bool Init(const SmartRecordTrigger& trigger_conf);
-  bool Process();
-  ~RecordProcessor() { writer_->Close(); }
+  RecordProcessor(const std::string& source_record_dir,
+                  const std::string& restored_output_dir);
+  virtual bool Init(const SmartRecordTrigger& trigger_conf);
+  virtual bool Process() = 0;
+  virtual std::string GetDefaultOutputFile() const = 0;
+  virtual ~RecordProcessor() { writer_->Close(); }
 
- private:
-  void LoadSourceRecords();
+ protected:
   bool InitTriggers(const SmartRecordTrigger& trigger_conf);
-  std::string GetDefaultOutputFile() const;
-  bool ShouldRestore(const RecordMessage& msg) const;
+  bool ShouldRestore(const cyber::record::RecordMessage& msg) const;
 
   const std::string source_record_dir_;
   const std::string restored_output_dir_;
-  std::vector<std::string> source_record_files_;
   std::vector<std::unique_ptr<TriggerBase>> triggers_;
-  std::unique_ptr<RecordWriter> writer_ = nullptr;
+  std::unique_ptr<cyber::record::RecordWriter> writer_ = nullptr;
 };
 
 }  // namespace data

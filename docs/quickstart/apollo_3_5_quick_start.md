@@ -33,7 +33,7 @@ For questions regarding Dreamview icons refer to the
 
 ## Onboard Test
 
-1. Plug-in an external hard-drive to any available USB port in the host machine. 
+1. Plug-in an external hard-drive to any available USB port in the host machine.
 
 2. Turn on the vehicle, and then the host machine.
 
@@ -53,7 +53,7 @@ For questions regarding Dreamview icons refer to the
    Note\: You'll be required to setup profile before doing anything else. Click
    the dropdown menu to select **Navigation** mode, the HDMap and vehicle you
    want to use. The lists are defined in
-   [HMI config file](https://raw.githubusercontent.com/ApolloAuto/apollo/master/modules/dreamview/conf/hmi.conf).
+   [HMI config file](https://github.com/ApolloAuto/apollo/tree/master/modules/dreamview/conf/hmi_modes).
 
    Note\: It's also possible to change the profile on the right panel of the
    HMI, but just remember to click `Reset All` on the top-right corner to
@@ -80,6 +80,6 @@ For questions regarding Dreamview icons refer to the
    ![](images/dreamview_2_5_start_auto.png)
 
 9. After the autonomous testing is complete, under Tasks click `Reset All`, close all
-   windows and shutdown the machine. 
+   windows and shutdown the machine.
 
 10. Remove the hard drive.

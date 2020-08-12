@@ -21,6 +21,10 @@
 #include "modules/perception/fusion/base/fusion_log.h"
 #include "modules/perception/fusion/common/camera_util.h"
 
+namespace {
+constexpr float kFloatEpsilon = std::numeric_limits<float>::epsilon();
+}  // namespace
+
 namespace apollo {
 namespace perception {
 namespace fusion {
@@ -53,7 +57,7 @@ double ComputePtsBoxLocationSimilarity(const ProjectionCachePtr& cache,
     base::BBox2DF velo_bbox = object->GetBox();
     float augmented_iou =
         CalculateAugmentedIOUBBox(velo_bbox, camera_bbox, augmented_buffer);
-    if (augmented_iou < FLT_EPSILON) {
+    if (augmented_iou < kFloatEpsilon) {
       ADEBUG << "augmented iou is empty!";
       return min_p;
     }
@@ -97,7 +101,7 @@ double ComputePtsBoxLocationSimilarity(const ProjectionCachePtr& cache,
 // @brief: calculate the shape similarity between cloud and camera box
 // @return the shape similarity which belongs to [0, 1].
 // @key idea:
-// 1. calcuate box size diff between velo box and camera box
+// 1. calculate box size diff between velo box and camera box
 // 2. normalize box size diff according to the std of x/y
 // 3. generate shape similarity from Chi-Squared distribution
 // @NOTE: original method name is compute_pts_box_shape_score
@@ -167,7 +171,7 @@ double ComputePtsBoxSimilarity(const ProjectionCachePtr& cache,
 // @brief: calculate the x/y/h similarity between radar and camera
 // @return the similarity which belongs to [0, 1].
 // @key idea:
-// 1. compute the differnece on x/y/h
+// 1. compute the difference on x/y/h
 // 2. compute similarity according to the WelshVarLoss/ChiSquareProb
 // 3. scale the similarity above
 double ComputeRadarCameraXSimilarity(const double velo_ct_x,
@@ -209,7 +213,7 @@ double ComputeRadarCameraHSimilarity(
     const HSimilarityParams& params) {
   const double camera_height = camera->GetBaseObject()->size(2);
   double height_similarity = params.initial_similarity_;
-  if (camera_height > FLT_EPSILON) {
+  if (camera_height > kFloatEpsilon) {
     double min_height_diff = std::numeric_limits<double>::max();
     for (size_t i = 0; i < 4; ++i) {
       double img_car_height = std::abs(radar_box2d_vertices[i + 4].y() -

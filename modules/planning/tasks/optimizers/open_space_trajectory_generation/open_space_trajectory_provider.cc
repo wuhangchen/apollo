@@ -18,13 +18,14 @@
  * @file
  **/
 
-#include <string>
-#include <vector>
-
 #include "modules/planning/tasks/optimizers/open_space_trajectory_generation/open_space_trajectory_provider.h"
+
+#include <memory>
+#include <string>
 
 #include "cyber/task/task.h"
 #include "modules/common/vehicle_state/proto/vehicle_state.pb.h"
+#include "modules/planning/common/planning_context.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/common/trajectory/publishable_trajectory.h"
 #include "modules/planning/common/trajectory_stitcher.h"
@@ -35,11 +36,13 @@ namespace planning {
 using apollo::common::ErrorCode;
 using apollo::common::Status;
 using apollo::common::TrajectoryPoint;
-using apollo::common::time::Clock;
+using apollo::common::math::Vec2d;
+using apollo::cyber::Clock;
 
 OpenSpaceTrajectoryProvider::OpenSpaceTrajectoryProvider(
-    const TaskConfig& config)
-    : TrajectoryOptimizer(config) {
+    const TaskConfig& config,
+    const std::shared_ptr<DependencyInjector>& injector)
+    : TrajectoryOptimizer(config, injector) {
   open_space_trajectory_optimizer_.reset(new OpenSpaceTrajectoryOptimizer(
       config.open_space_trajectory_provider_config()
           .open_space_trajectory_optimizer_config()));
@@ -80,8 +83,19 @@ void OpenSpaceTrajectoryProvider::Restart() {
 }
 
 Status OpenSpaceTrajectoryProvider::Process() {
+  ADEBUG << "trajectory provider";
   auto trajectory_data =
       frame_->mutable_open_space_info()->mutable_stitched_trajectory_result();
+
+  // generate stop trajectory at park_and_go check_stage
+  if (injector_->planning_context()
+          ->mutable_planning_status()
+          ->mutable_park_and_go()
+          ->in_check_stage()) {
+    ADEBUG << "ParkAndGo Stage Check.";
+    GenerateStopTrajectory(trajectory_data);
+    return Status::OK();
+  }
   // Start thread when getting in Process() for the first time
   if (FLAGS_enable_open_space_planner_thread && !thread_init_flag_) {
     task_future_ = cyber::Async(
@@ -90,7 +104,7 @@ Status OpenSpaceTrajectoryProvider::Process() {
   }
   // Get stitching trajectory from last frame
   const common::VehicleState vehicle_state = frame_->vehicle_state();
-  auto* previous_frame = FrameHistory::Instance()->Latest();
+  auto* previous_frame = injector_->frame_history()->Latest();
   // Use complete raw trajectory from last frame for stitching purpose
   std::vector<TrajectoryPoint> stitching_trajectory;
   if (!IsVehicleStopDueToFallBack(
@@ -108,7 +122,7 @@ Status OpenSpaceTrajectoryProvider::Process() {
     const double start_timestamp = Clock::NowInSeconds();
     stitching_trajectory = TrajectoryStitcher::ComputeStitchingTrajectory(
         vehicle_state, start_timestamp, planning_cycle_time,
-        FLAGS_open_space_trajectory_stitching_preserved_length,
+        FLAGS_open_space_trajectory_stitching_preserved_length, false,
         &last_frame_complete_trajectory, &replan_reason);
   } else {
     ADEBUG << "Replan due to fallback stop";
@@ -116,6 +130,10 @@ Status OpenSpaceTrajectoryProvider::Process() {
         1.0 / static_cast<double>(FLAGS_planning_loop_rate);
     stitching_trajectory = TrajectoryStitcher::ComputeReinitStitchingTrajectory(
         planning_cycle_time, vehicle_state);
+    auto* open_space_status = injector_->planning_context()
+                                  ->mutable_planning_status()
+                                  ->mutable_open_space();
+    open_space_status->set_position_init(false);
   }
   // Get open_space_info from current frame
   const auto& open_space_info = frame_->open_space_info();
@@ -165,8 +183,8 @@ Status OpenSpaceTrajectoryProvider::Process() {
         // sync debug instance
         frame_->mutable_open_space_info()->sync_debug_instance();
       }
-      trajectory_updated_.store(false);
       data_ready_.store(false);
+      trajectory_updated_.store(false);
       return Status::OK();
     }
 
@@ -217,10 +235,12 @@ Status OpenSpaceTrajectoryProvider::Process() {
     }
 
     // Generate Trajectory;
+    double time_latency;
     Status status = open_space_trajectory_optimizer_->Plan(
         stitching_trajectory, end_pose, XYbounds, rotate_angle,
         translate_origin, obstacles_edges_num, obstacles_A, obstacles_b,
-        obstacles_vertices_vec);
+        obstacles_vertices_vec, &time_latency);
+    frame_->mutable_open_space_info()->set_time_latency(time_latency);
 
     // If status is OK, update vehicle trajectory;
     if (status == Status::OK()) {
@@ -241,12 +261,14 @@ void OpenSpaceTrajectoryProvider::GenerateTrajectoryThread() {
         std::lock_guard<std::mutex> lock(open_space_mutex_);
         thread_data = thread_data_;
       }
+      double time_latency;
       Status status = open_space_trajectory_optimizer_->Plan(
           thread_data.stitching_trajectory, thread_data.end_pose,
           thread_data.XYbounds, thread_data.rotate_angle,
           thread_data.translate_origin, thread_data.obstacles_edges_num,
           thread_data.obstacles_A, thread_data.obstacles_b,
-          thread_data.obstacles_vertices_vec);
+          thread_data.obstacles_vertices_vec, &time_latency);
+      frame_->mutable_open_space_info()->set_time_latency(time_latency);
       if (status == Status::OK()) {
         std::lock_guard<std::mutex> lock(open_space_mutex_);
         trajectory_updated_.store(true);
@@ -273,15 +295,37 @@ bool OpenSpaceTrajectoryProvider::IsVehicleNearDestination(
   end_pose_to_world_frame.SelfRotate(rotate_angle);
   end_pose_to_world_frame += translate_origin;
 
+  double end_theta_to_world_frame = end_pose[2];
+  end_theta_to_world_frame += rotate_angle;
+
   double distance_to_vehicle =
       std::sqrt((vehicle_state.x() - end_pose_to_world_frame.x()) *
                     (vehicle_state.x() - end_pose_to_world_frame.x()) +
                 (vehicle_state.y() - end_pose_to_world_frame.y()) *
                     (vehicle_state.y() - end_pose_to_world_frame.y()));
 
+  double theta_to_vehicle = std::abs(common::math::AngleDiff(
+      vehicle_state.heading(), end_theta_to_world_frame));
+  ADEBUG << "theta_to_vehicle" << theta_to_vehicle << "end_theta_to_world_frame"
+         << end_theta_to_world_frame << "rotate_angle" << rotate_angle;
+  ADEBUG << "is_near_destination_threshold"
+         << config_.open_space_trajectory_provider_config()
+                .open_space_trajectory_optimizer_config()
+                .planner_open_space_config()
+                .is_near_destination_threshold();  // which config file
+  ADEBUG << "is_near_destination_theta_threshold"
+         << config_.open_space_trajectory_provider_config()
+                .open_space_trajectory_optimizer_config()
+                .planner_open_space_config()
+                .is_near_destination_theta_threshold();
   if (distance_to_vehicle < config_.open_space_trajectory_provider_config()
                                 .open_space_trajectory_optimizer_config()
-                                .is_near_destination_threshold()) {
+                                .planner_open_space_config()
+                                .is_near_destination_threshold() &&
+      theta_to_vehicle < config_.open_space_trajectory_provider_config()
+                             .open_space_trajectory_optimizer_config()
+                             .planner_open_space_config()
+                             .is_near_destination_theta_threshold()) {
     ADEBUG << "vehicle reach end_pose";
     frame_->mutable_open_space_info()->set_destination_reached(true);
     return true;
@@ -294,7 +338,7 @@ bool OpenSpaceTrajectoryProvider::IsVehicleStopDueToFallBack(
   if (!is_on_fallback) {
     return false;
   }
-  constexpr double kEpsilon = 1.0e-1;
+  static constexpr double kEpsilon = 1.0e-1;
   const double adc_speed = vehicle_state.linear_velocity();
   const double adc_acceleration = vehicle_state.linear_acceleration();
   if (std::abs(adc_speed) < kEpsilon && std::abs(adc_acceleration) < kEpsilon) {
@@ -308,8 +352,13 @@ void OpenSpaceTrajectoryProvider::GenerateStopTrajectory(
     DiscretizedTrajectory* const trajectory_data) {
   double relative_time = 0.0;
   // TODO(Jinyun) Move to conf
-  constexpr int stop_trajectory_length = 10;
-  constexpr double relative_stop_time = 0.1;
+  static constexpr int stop_trajectory_length = 10;
+  static constexpr double relative_stop_time = 0.1;
+  static constexpr double vEpsilon = 0.00001;
+  double standstill_acceleration =
+      frame_->vehicle_state().linear_velocity() >= -vEpsilon
+          ? -FLAGS_open_space_standstill_acceleration
+          : FLAGS_open_space_standstill_acceleration;
   trajectory_data->clear();
   for (size_t i = 0; i < stop_trajectory_length; i++) {
     TrajectoryPoint point;
@@ -320,7 +369,7 @@ void OpenSpaceTrajectoryProvider::GenerateStopTrajectory(
     point.mutable_path_point()->set_kappa(0.0);
     point.set_relative_time(relative_time);
     point.set_v(0.0);
-    point.set_a(0.0);
+    point.set_a(standstill_acceleration);
     trajectory_data->emplace_back(point);
     relative_time += relative_stop_time;
   }

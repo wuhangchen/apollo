@@ -24,10 +24,14 @@ set -e
 source /apollo/scripts/apollo_base.sh
 source /apollo/cyber/setup.bash
 
+if [ ! -z "$4" ]; then
+    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$4
+fi
+
 sudo mkdir -p ${TARGET_DIR}
 
 if [ -z "$3" ]; then
-    MAP_DIR="sunnyvale_with_two_offices"
+    MAP_DIR="sunnyvale"
 else
     MAP_DIR=$3
 fi
@@ -36,6 +40,7 @@ fi
     --flagfile=/apollo/modules/prediction/conf/prediction.conf \
     --map_dir=/apollo/modules/map/data/${MAP_DIR} \
     --prediction_offline_mode=5 \
+    --noenable_multi_thread \
     --prediction_offline_bags=${SRC_DIR} \
     --prediction_data_dir=${TARGET_DIR} \
     --noenable_multi_thread

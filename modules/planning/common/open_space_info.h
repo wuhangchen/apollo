@@ -19,8 +19,6 @@
  **/
 #pragma once
 
-#include <algorithm>
-#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -45,7 +43,6 @@
 
 namespace apollo {
 namespace planning {
-using apollo::planning_internal::Debug;
 
 typedef std::pair<DiscretizedTrajectory, canbus::Chassis::GearPosition>
     TrajGearPair;
@@ -64,14 +61,6 @@ class OpenSpaceInfo {
  public:
   OpenSpaceInfo() = default;
   ~OpenSpaceInfo() = default;
-
-  bool open_space_pre_stop_finished() const {
-    return open_space_pre_stop_finished_;
-  }
-
-  void set_open_space_pre_stop_finished(const bool flag) {
-    open_space_pre_stop_finished_ = flag;
-  }
 
   const std::string target_parking_spot_id() const {
     return target_parking_spot_id_;
@@ -228,13 +217,13 @@ class OpenSpaceInfo {
     return &interpolated_trajectory_result_;
   }
 
-  const std::vector<TrajGearPair> &paritioned_trajectories() const {
+  const std::vector<TrajGearPair> &partitioned_trajectories() const {
     // TODO(Runxin): export to chart
-    return paritioned_trajectories_;
+    return partitioned_trajectories_;
   }
 
-  std::vector<TrajGearPair> *mutable_paritioned_trajectories() {
-    return &paritioned_trajectories_;
+  std::vector<TrajGearPair> *mutable_partitioned_trajectories() {
+    return &partitioned_trajectories_;
   }
 
   const GearSwitchStates &gear_switch_states() const {
@@ -245,13 +234,13 @@ class OpenSpaceInfo {
     return &gear_switch_states_;
   }
 
-  const TrajGearPair &chosen_paritioned_trajectory() const {
+  const TrajGearPair &chosen_partitioned_trajectory() const {
     // TODO(Runxin): export to chart
-    return chosen_paritioned_trajectory_;
+    return chosen_partitioned_trajectory_;
   }
 
-  TrajGearPair *mutable_chosen_paritioned_trajectory() {
-    return &chosen_paritioned_trajectory_;
+  TrajGearPair *mutable_chosen_partitioned_trajectory() {
+    return &chosen_partitioned_trajectory_;
   }
 
   bool fallback_flag() const { return fallback_flag_; }
@@ -303,14 +292,22 @@ class OpenSpaceInfo {
     return &debug_instance_;
   }
 
-  void sync_debug_instance() { debug_instance_ = *debug_; }
+  void sync_debug_instance() {
+    // Remove existing obstacle vectors to prevent repeating obstacle
+    // vectors.
+    if (!debug_->planning_data().open_space().obstacles().empty()) {
+      debug_instance_.mutable_planning_data()
+          ->mutable_open_space()
+          ->clear_obstacles();
+    }
+    debug_instance_.MergeFrom(*debug_);
+  }
 
   void RecordDebug(apollo::planning_internal::Debug *ptr_debug);
 
- private:
-  // @brief vehicle needs to stop first in open space related scenarios
-  bool open_space_pre_stop_finished_ = true;
+  void set_time_latency(double time_latency) { time_latency_ = time_latency; }
 
+ private:
   std::string target_parking_spot_id_;
 
   hdmap::ParkingSpaceInfoConstPtr target_parking_spot_ = nullptr;
@@ -365,11 +362,11 @@ class OpenSpaceInfo {
 
   DiscretizedTrajectory interpolated_trajectory_result_;
 
-  std::vector<TrajGearPair> paritioned_trajectories_;
+  std::vector<TrajGearPair> partitioned_trajectories_;
 
   GearSwitchStates gear_switch_states_;
 
-  TrajGearPair chosen_paritioned_trajectory_;
+  TrajGearPair chosen_partitioned_trajectory_;
 
   bool fallback_flag_ = true;
 
@@ -386,6 +383,8 @@ class OpenSpaceInfo {
   // the instance inside debug,
   // if ADCtrajectory is NULL, blank; else same to ADCtrajectory
   apollo::planning_internal::Debug debug_instance_;
+
+  double time_latency_ = 0.0;
 };
 
 }  // namespace planning

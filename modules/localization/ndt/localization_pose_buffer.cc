@@ -15,8 +15,10 @@
  *****************************************************************************/
 
 #include "modules/localization/ndt/localization_pose_buffer.h"
-#include <Eigen/Dense>
+
 #include <iomanip>
+
+#include "Eigen/Dense"
 #include "cyber/common/log.h"
 #include "modules/common/math/euler_angles_zxy.h"
 
@@ -46,7 +48,7 @@ void LocalizationPoseBuffer::UpdateLidarPose(
     ++used_buffer_size_;
     has_initialized_ = true;
   } else {
-    // add 10hz pose
+    // add 10Hz pose
     unsigned int empty_position =
         (head_index_ + used_buffer_size_) % s_buffer_size_;
     lidar_poses_[empty_position].locator_pose = locator_pose;

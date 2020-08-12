@@ -20,13 +20,14 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
 
-#include "modules/planning/proto/planning_config.pb.h"
-
 #include "modules/common/status/status.h"
+#include "modules/planning/common/dependency_injector.h"
 #include "modules/planning/common/frame.h"
 #include "modules/planning/common/reference_line_info.h"
+#include "modules/planning/proto/planning_config.pb.h"
 
 namespace apollo {
 namespace planning {
@@ -35,18 +36,19 @@ class Task {
  public:
   explicit Task(const TaskConfig& config);
 
-  virtual ~Task() = default;
+  Task(const TaskConfig& config,
+       const std::shared_ptr<DependencyInjector>& injector);
 
-  void SetName(const std::string& name) { name_ = name; }
+  virtual ~Task() = default;
 
   const std::string& Name() const;
 
   const TaskConfig& Config() const { return config_; }
 
-  virtual apollo::common::Status Execute(
-      Frame* frame, ReferenceLineInfo* reference_line_info);
+  virtual common::Status Execute(Frame* frame,
+                                 ReferenceLineInfo* reference_line_info);
 
-  virtual apollo::common::Status Execute(Frame* frame);
+  virtual common::Status Execute(Frame* frame);
 
  protected:
   Frame* frame_ = nullptr;
@@ -54,6 +56,8 @@ class Task {
 
   TaskConfig config_;
   std::string name_;
+
+  std::shared_ptr<DependencyInjector> injector_;
 };
 
 }  // namespace planning

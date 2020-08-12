@@ -1,10 +1,9 @@
 delta_t : 0.5
-max_position_error_to_end_point : 0.05
-max_theta_error_to_end_point : 0.05
 is_near_destination_threshold : 0.05
 
 roi_config : {
-  roi_longitudinal_range : 15.0
+  roi_longitudinal_range_start : 15.0
+  roi_longitudinal_range_end : 15.0
   parking_start_range : 12.0
   parking_inwards : false
 }
@@ -38,6 +37,8 @@ dual_variable_warm_start_config : {
     ipopt_alpha_for_y : "min"
     ipopt_recalc_y : "yes"
   }
+  qp_format: OSQP
+  min_safety_distance: 0.0
 }
 
 distance_approach_config : {

@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
+#include "modules/localization/msf/local_tool/map_creation/poses_interpolation/poses_interpolation.h"
 
 #include <fstream>
 
+#include "cyber/common/log.h"
 #include "modules/localization/msf/common/io/velodyne_utility.h"
-#include "modules/localization/msf/local_tool/map_creation/poses_interpolation/poses_interpolation.h"
 
 namespace apollo {
 namespace localization {
@@ -35,7 +36,7 @@ bool PosesInterpolation::Init(const std::string &input_poses_path,
 
   bool success = velodyne::LoadExtrinsic(extrinsic_path_, &velodyne_extrinsic_);
   if (!success) {
-    std::cerr << "Load lidar extrinsic failed." << std::endl;
+    AERROR << "Load lidar extrinsic failed.";
     return false;
   }
 
@@ -44,7 +45,7 @@ bool PosesInterpolation::Init(const std::string &input_poses_path,
 
 void PosesInterpolation::DoInterpolation() {
   // Load input poses
-  std::vector<Eigen::Vector3d> input_stds;
+  ::apollo::common::EigenVector3dVec input_stds;
   velodyne::LoadPosesAndStds(input_poses_path_, &input_poses_, &input_stds,
                              &input_poses_timestamps_);
 
@@ -65,14 +66,14 @@ void PosesInterpolation::LoadPCDTimestamp() {
   if (file) {
     unsigned int index;
     double timestamp;
-    constexpr int kSize = 2;
+    static constexpr int kSize = 2;
     while (fscanf(file, "%u %lf\n", &index, &timestamp) == kSize) {
       ref_timestamps_.push_back(timestamp);
       ref_ids_.push_back(index);
     }
     fclose(file);
   } else {
-    std::cerr << "Can't open file to read: " << ref_timestamps_path_;
+    AINFO << "Can't open file to read: " << ref_timestamps_path_;
   }
 }
 
@@ -101,17 +102,17 @@ void PosesInterpolation::WritePCDPoses() {
 
     fout.close();
   } else {
-    std::cerr << "Can't open file to write: " << out_poses_path_ << std::endl;
+    AERROR << "Can't open file to write: " << out_poses_path_ << std::endl;
   }
 }  // namespace msf
 
 void PosesInterpolation::PoseInterpolationByTime(
-    const std::vector<Eigen::Affine3d> &in_poses,
+    const ::apollo::common::EigenAffine3dVec &in_poses,
     const std::vector<double> &in_timestamps,
     const std::vector<double> &ref_timestamps,
     const std::vector<unsigned int> &ref_indexes,
     std::vector<unsigned int> *out_indexes, std::vector<double> *out_timestamps,
-    std::vector<Eigen::Affine3d> *out_poses) {
+    ::apollo::common::EigenAffine3dVec *out_poses) {
   out_indexes->clear();
   out_timestamps->clear();
   out_poses->clear();
@@ -156,10 +157,10 @@ void PosesInterpolation::PoseInterpolationByTime(
         out_timestamps->push_back(ref_timestamp);
       }
     } else {
-      std::cerr << "[ERROR] No more poses. Exit now." << std::endl;
+      AWARN << "[WARN] No more poses. Exit now.";
       break;
     }
-    std::cout << "Frame_id: " << i << std::endl;
+    ADEBUG << "Frame_id: " << i;
   }
 }
 

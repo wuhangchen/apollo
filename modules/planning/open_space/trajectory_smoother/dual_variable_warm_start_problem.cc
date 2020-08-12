@@ -20,10 +20,11 @@
 
 #include "modules/planning/open_space/trajectory_smoother/dual_variable_warm_start_problem.h"
 
-#include "IpIpoptApplication.hpp"
-#include "IpSolveStatistics.hpp"
+#include <coin/IpIpoptApplication.hpp>
+#include <coin/IpSolveStatistics.hpp>
 
-#include "modules/common/time/time.h"
+#include "cyber/common/log.h"
+#include "cyber/time/time.h"
 #include "modules/planning/common/planning_gflags.h"
 
 namespace apollo {
@@ -31,7 +32,7 @@ namespace planning {
 
 DualVariableWarmStartProblem::DualVariableWarmStartProblem(
     const PlannerOpenSpaceConfig& planner_open_space_config) {
-  planner_open_space_config_.CopyFrom(planner_open_space_config);
+  planner_open_space_config_ = planner_open_space_config;
 }
 
 bool DualVariableWarmStartProblem::Solve(
@@ -39,30 +40,52 @@ bool DualVariableWarmStartProblem::Solve(
     size_t obstacles_num, const Eigen::MatrixXi& obstacles_edges_num,
     const Eigen::MatrixXd& obstacles_A, const Eigen::MatrixXd& obstacles_b,
     const Eigen::MatrixXd& xWS, Eigen::MatrixXd* l_warm_up,
-    Eigen::MatrixXd* n_warm_up) {
+    Eigen::MatrixXd* n_warm_up, Eigen::MatrixXd* s_warm_up) {
   auto t_start = cyber::Time::Now().ToSecond();
+  bool solver_flag = false;
 
   if (planner_open_space_config_.dual_variable_warm_start_config()
           .qp_format() == OSQP) {
-    DualVariableWarmStartOSQPInterface* ptop =
-        new DualVariableWarmStartOSQPInterface(
+    DualVariableWarmStartOSQPInterface ptop =
+        DualVariableWarmStartOSQPInterface(
             horizon, ts, ego, obstacles_edges_num, obstacles_num, obstacles_A,
             obstacles_b, xWS, planner_open_space_config_);
-    bool succ = ptop->optimize();
 
-    if (succ) {
+    if (ptop.optimize()) {
       ADEBUG << "dual warm up done.";
-      ptop->get_optimization_results(l_warm_up, n_warm_up);
+      ptop.get_optimization_results(l_warm_up, n_warm_up);
 
       auto t_end = cyber::Time::Now().ToSecond();
       ADEBUG << "Dual variable warm start solving time in second : "
              << t_end - t_start;
-      return true;
-    }
 
-    AERROR << "dual warm up fail.";
-    ptop->get_optimization_results(l_warm_up, n_warm_up);
-    return false;
+      solver_flag = true;
+    } else {
+      AWARN << "dual warm up fail.";
+      ptop.get_optimization_results(l_warm_up, n_warm_up);
+      solver_flag = false;
+    }
+  } else if (planner_open_space_config_.dual_variable_warm_start_config()
+                 .qp_format() == SLACKQP) {
+    DualVariableWarmStartSlackOSQPInterface ptop =
+        DualVariableWarmStartSlackOSQPInterface(
+            horizon, ts, ego, obstacles_edges_num, obstacles_num, obstacles_A,
+            obstacles_b, xWS, planner_open_space_config_);
+
+    if (ptop.optimize()) {
+      ADEBUG << "dual warm up done.";
+      ptop.get_optimization_results(l_warm_up, n_warm_up, s_warm_up);
+
+      auto t_end = cyber::Time::Now().ToSecond();
+      ADEBUG << "Dual variable warm start solving time in second : "
+             << t_end - t_start;
+
+      solver_flag = true;
+    } else {
+      AWARN << "dual warm up fail.";
+      ptop.get_optimization_results(l_warm_up, n_warm_up, s_warm_up);
+      solver_flag = false;
+    }
   } else if (planner_open_space_config_.dual_variable_warm_start_config()
                  .qp_format() == IPOPTQP) {
     DualVariableWarmStartIPOPTQPInterface* ptop =
@@ -157,8 +180,8 @@ bool DualVariableWarmStartProblem::Solve(
 
     ptop->get_optimization_results(l_warm_up, n_warm_up);
 
-    return status == Ipopt::Solve_Succeeded ||
-           status == Ipopt::Solved_To_Acceptable_Level;
+    solver_flag = (status == Ipopt::Solve_Succeeded ||
+                   status == Ipopt::Solved_To_Acceptable_Level);
   } else if (planner_open_space_config_.dual_variable_warm_start_config()
                  .qp_format() == IPOPT) {
     DualVariableWarmStartIPOPTInterface* ptop =
@@ -250,8 +273,8 @@ bool DualVariableWarmStartProblem::Solve(
 
     ptop->get_optimization_results(l_warm_up, n_warm_up);
 
-    return status == Ipopt::Solve_Succeeded ||
-           status == Ipopt::Solved_To_Acceptable_Level;
+    solver_flag = (status == Ipopt::Solve_Succeeded ||
+                   status == Ipopt::Solved_To_Acceptable_Level);
   } else {  // debug mode
     DualVariableWarmStartOSQPInterface* ptop_osqp =
         new DualVariableWarmStartOSQPInterface(
@@ -436,6 +459,23 @@ bool DualVariableWarmStartProblem::Solve(
 
     return true;
   }
+
+  if (solver_flag == false) {
+    // if solver fails during dual warm up, insert zeros instead
+    for (int r = 0; r < l_warm_up->rows(); ++r) {
+      for (int c = 0; c < l_warm_up->cols(); ++c) {
+        (*l_warm_up)(r, c) = 0.0;
+      }
+    }
+
+    for (int r = 0; r < n_warm_up->rows(); ++r) {
+      for (int c = 0; c < n_warm_up->cols(); ++c) {
+        (*n_warm_up)(r, c) = 0.0;
+      }
+    }
+  }
+
+  return true;
 }
 }  // namespace planning
 }  // namespace apollo

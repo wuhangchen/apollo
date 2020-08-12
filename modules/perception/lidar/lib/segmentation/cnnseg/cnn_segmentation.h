@@ -87,9 +87,9 @@ class CNNSegmentation : public BaseSegmentation {
   std::vector<int> point2grid_;
 
   // ground detector for background segmentation
-  std::unique_ptr<BaseGroundDetector> ground_detector_;
+  BaseGroundDetector* ground_detector_;
   // roi filter for background segmentation
-  std::unique_ptr<BaseROIFilter> roi_filter_;
+  BaseROIFilter* roi_filter_;
 
   // thread worker
   lib::ThreadWorker worker_;
@@ -119,6 +119,10 @@ class CNNSegmentation : public BaseSegmentation {
 
   // sensor_name
   std::string sensor_name_;
+
+  // secondary segmentation to improve miss detection
+  // not found by neural networks !
+  std::shared_ptr<BaseSegmentation> secondary_segmentor;
 
  private:
   const int kDefaultPointCloudSize = 120000;

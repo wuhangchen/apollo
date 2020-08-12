@@ -14,7 +14,7 @@
  * limitations under the License.
  *****************************************************************************/
 
-#include "modules/common/time/time.h"
+#include "cyber/time/clock.h"
 #include "modules/planning/common/planning_context.h"
 #include "modules/planning/common/planning_gflags.h"
 #include "modules/planning/integration_tests/planning_test_base.h"
@@ -35,7 +35,6 @@ class GarageTest : public PlanningTestBase {
  public:
   virtual void SetUp() {
     FLAGS_use_multi_thread_to_add_obstacles = false;
-    FLAGS_enable_multi_thread_in_dp_poly_path = false;
     FLAGS_enable_multi_thread_in_dp_st_graph = false;
     FLAGS_use_navigation_mode = false;
     FLAGS_map_dir = "modules/planning/testdata/garage_map";
@@ -47,10 +46,8 @@ class GarageTest : public PlanningTestBase {
     FLAGS_test_prediction_file = "";
     FLAGS_test_localization_file = "";
     FLAGS_test_chassis_file = "";
-    FLAGS_enable_lag_prediction = false;
     FLAGS_enable_rss_info = false;
 
-    FLAGS_enable_scenario_side_pass = false;
     FLAGS_enable_scenario_stop_sign = false;
     FLAGS_enable_scenario_traffic_light = false;
   }

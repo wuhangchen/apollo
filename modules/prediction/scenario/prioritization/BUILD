@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -6,6 +7,7 @@ cc_library(
     name = "obstacles_prioritizer",
     srcs = ["obstacles_prioritizer.cc"],
     hdrs = ["obstacles_prioritizer.h"],
+    copts = ['-DMODULE_NAME=\\"prediction\\"'],
     deps = [
         "//modules/prediction/common:environment_features",
         "//modules/prediction/container:container_manager",

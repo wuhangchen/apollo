@@ -16,9 +16,11 @@
 
 #pragma once
 
+#include <mutex>
 #include <string>
 #include <vector>
 
+#include "modules/prediction/container/obstacles/obstacle.h"
 #include "modules/prediction/proto/offline_features.pb.h"
 #include "modules/prediction/proto/prediction_obstacle.pb.h"
 
@@ -63,13 +65,21 @@ class FeatureOutput {
                                     const std::string& category,
                                     const LaneSequence* lane_sequence_ptr);
 
+  static void InsertDataForLearning(
+      const Feature& feature, const std::vector<double>& feature_values,
+      const std::vector<std::string>& string_feature_values,
+      const std::string& category, const LaneSequence* lane_sequence_ptr);
+
   /**
    * @brief Insert a prediction result with predicted trajectories
    * @param Obstacle id
    * @param prediction_obstacle
+   * @param obstacle_conf
+   * @param scenario
    */
   static void InsertPredictionResult(
-      const int obstacle_id, const PredictionObstacle& prediction_obstacle);
+      const Obstacle* obstacle, const PredictionObstacle& prediction_obstacle,
+      const ObstacleConf& obstacle_conf, const Scenario& scenario);
 
   /**
    * @brief Insert a frame env
@@ -83,11 +93,12 @@ class FeatureOutput {
    * @param values for tuning
    * @param category of the data
    * @param lane sequence
+   * @param adc trajectory
    */
-  static void InsertDataForTuning(const Feature& feature,
-                                  const std::vector<double>& feature_values,
-                                  const std::string& category,
-                                  const LaneSequence& lane_sequence);
+  static void InsertDataForTuning(
+      const Feature& feature, const std::vector<double>& feature_values,
+      const std::string& category, const LaneSequence& lane_sequence,
+      const std::vector<apollo::common::TrajectoryPoint>& adc_trajectory);
 
   /**
    * @brief Write features to a file
@@ -155,6 +166,7 @@ class FeatureOutput {
   static std::size_t idx_frame_env_;
   static ListDataForTuning list_data_for_tuning_;
   static std::size_t idx_tuning_;
+  static std::mutex mutex_feature_;
 };
 
 }  // namespace prediction

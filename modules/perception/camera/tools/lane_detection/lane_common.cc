@@ -21,8 +21,8 @@ DEFINE_string(list, "test.list", "test file title");
 DEFINE_string(file_title, "", "test file title");
 DEFINE_string(debug_file, "", "debug file title");
 DEFINE_string(save_dir, "./result/", "test file title");
-DEFINE_string(file_ext_name, "", "file extenstion name");
-DEFINE_string(file_debug_list, "", "file extenstion name");
+DEFINE_string(file_ext_name, "", "file extension name");
+DEFINE_string(file_debug_list, "", "file extension name");
 DEFINE_bool(lane_line_debug, false, "draw the lane line result");
 DEFINE_bool(lane_cc_debug, false, "show lane cc image");
 DEFINE_bool(lane_center_debug, false, "draw the lane center result");
@@ -39,7 +39,7 @@ namespace camera {
 // show detect point_set
 void show_detect_point_set(
     const cv::Mat& image,
-    const std::vector<std::vector<LanePointInfo> >& detect_laneline_point_set,
+    const std::vector<std::vector<LanePointInfo>>& detect_laneline_point_set,
     const std::string& save_path) {
   cv::Scalar color = cv::Scalar(0, 255, 0);
   int draw_size = 2;

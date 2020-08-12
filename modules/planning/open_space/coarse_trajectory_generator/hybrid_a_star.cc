@@ -25,7 +25,9 @@
 namespace apollo {
 namespace planning {
 
-using apollo::common::time::Clock;
+using apollo::common::math::Box2d;
+using apollo::common::math::Vec2d;
+using apollo::cyber::Clock;
 
 HybridAStar::HybridAStar(const PlannerOpenSpaceConfig& open_space_conf) {
   planner_open_space_config_.CopyFrom(open_space_conf);
@@ -81,28 +83,28 @@ bool HybridAStar::RSPCheck(
 }
 
 bool HybridAStar::ValidityCheck(std::shared_ptr<Node3d> node) {
+  CHECK_NOTNULL(node);
+  CHECK_GT(node->GetStepSize(), 0);
+
   if (obstacles_linesegments_vec_.empty()) {
     return true;
   }
+
   size_t node_step_size = node->GetStepSize();
-  size_t last_check_index = 0;
-  std::vector<double> traversed_x;
-  std::vector<double> traversed_y;
-  std::vector<double> traversed_phi;
-  traversed_x = node->GetXs();
-  traversed_y = node->GetYs();
-  traversed_phi = node->GetPhis();
-  std::reverse(traversed_x.begin(), traversed_x.end());
-  std::reverse(traversed_y.begin(), traversed_y.end());
-  std::reverse(traversed_phi.begin(), traversed_phi.end());
+  const auto& traversed_x = node->GetXs();
+  const auto& traversed_y = node->GetYs();
+  const auto& traversed_phi = node->GetPhis();
+
   // The first {x, y, phi} is collision free unless they are start and end
   // configuration of search problem
+  size_t check_start_index = 0;
   if (node_step_size == 1) {
-    last_check_index = 1;
+    check_start_index = 0;
   } else {
-    last_check_index = node_step_size - 1;
+    check_start_index = 1;
   }
-  for (size_t i = 0; i < last_check_index; ++i) {
+
+  for (size_t i = check_start_index; i < node_step_size; ++i) {
     if (traversed_x[i] > XYbounds_[1] || traversed_x[i] < XYbounds_[0] ||
         traversed_y[i] > XYbounds_[3] || traversed_y[i] < XYbounds_[2]) {
       return false;
@@ -113,6 +115,10 @@ bool HybridAStar::ValidityCheck(std::shared_ptr<Node3d> node) {
       for (const common::math::LineSegment2d& linesegment :
            obstacle_linesegments) {
         if (bounding_box.HasOverlap(linesegment)) {
+          ADEBUG << "collision start at x: " << linesegment.start().x();
+          ADEBUG << "collision start at y: " << linesegment.start().y();
+          ADEBUG << "collision end at x: " << linesegment.end().x();
+          ADEBUG << "collision end at y: " << linesegment.end().y();
           return false;
         }
       }
@@ -128,14 +134,13 @@ std::shared_ptr<Node3d> HybridAStar::LoadRSPinCS(
       reeds_shepp_to_end->x, reeds_shepp_to_end->y, reeds_shepp_to_end->phi,
       XYbounds_, planner_open_space_config_));
   end_node->SetPre(current_node);
-  close_set_.insert(std::make_pair(end_node->GetIndex(), end_node));
+  close_set_.emplace(end_node->GetIndex(), end_node);
   return end_node;
 }
 
 std::shared_ptr<Node3d> HybridAStar::Next_node_generator(
     std::shared_ptr<Node3d> current_node, size_t next_node_index) {
   double steering = 0.0;
-  size_t index = 0;
   double traveled_distance = 0.0;
   if (next_node_index < static_cast<double>(next_node_num_) / 2) {
     steering =
@@ -144,7 +149,7 @@ std::shared_ptr<Node3d> HybridAStar::Next_node_generator(
             static_cast<double>(next_node_index);
     traveled_distance = step_size_;
   } else {
-    index = next_node_index - next_node_num_ / 2;
+    size_t index = next_node_index - next_node_num_ / 2;
     steering =
         -max_steer_angle_ +
         (2 * max_steer_angle_ / (static_cast<double>(next_node_num_) / 2 - 1)) *
@@ -337,112 +342,196 @@ bool HybridAStar::GenerateSpeedAcceleration(HybridAStartResult* result) {
 }
 
 bool HybridAStar::GenerateSCurveSpeedAcceleration(HybridAStartResult* result) {
+  // sanity check
+  CHECK_NOTNULL(result);
   if (result->x.size() < 2 || result->y.size() < 2 || result->phi.size() < 2) {
     AERROR << "result size check when generating speed and acceleration fail";
     return false;
   }
-
-  const size_t x_size = result->x.size();
-
-  ADEBUG << "x_size is: " << x_size;
-
-  double accumulated_s = 0.0;
-  std::vector<std::tuple<double, double, double>> s_bounds;
-  std::vector<std::tuple<double, double, double>> ds_bounds;
-
-  // Setup for initial point.
-  result->accumulated_s.push_back(0.0);
-  result->v.push_back(0.0);
-  s_bounds.emplace_back(0.0, -10.0, 10.0);
-  ds_bounds.emplace_back(0.0, -10.0, 10.0);
-
-  ADEBUG << "Initial accumulated_s: " << 0.0 << " initial discrete_v: " << 0.0;
-
-  for (size_t i = 0; i + 1 < x_size; ++i) {
-    const double discrete_v = ((result->x[i + 1] - result->x[i]) / delta_t_) *
-                                  std::cos(result->phi[i]) +
-                              ((result->y[i + 1] - result->y[i]) / delta_t_) *
-                                  std::sin(result->phi[i]);
-
-    accumulated_s += discrete_v * delta_t_;
-
-    result->v.push_back(discrete_v);
-    result->accumulated_s.push_back(accumulated_s);
-    s_bounds.emplace_back(static_cast<double>(i) * delta_t_, accumulated_s - 10,
-                          accumulated_s + 10);
-    ds_bounds.emplace_back(static_cast<double>(i) * delta_t_, discrete_v - 10,
-                           discrete_v + 10);
-
-    ADEBUG << "Initial accumulated_s: " << accumulated_s
-           << " initial discrete_v: " << discrete_v;
-  }
-
-  result->v[x_size - 1] = 0.0;
-
-  std::array<double, 3> init_s = {result->accumulated_s[0], result->v[0],
-                                  (result->v[1] - result->v[0]) / delta_t_};
-
-  ADEBUG << "init_s: " << result->accumulated_s[0] << " " << result->v[0] << " "
-         << (result->v[1] - result->v[0]) / delta_t_;
-
-  // Start a PathTimeQpProblem
-  std::array<double, 3> end_s = {result->accumulated_s[x_size - 1], 0.0, 0.0};
-
-  ADEBUG << "end_s: " << result->accumulated_s[x_size - 1] << " " << 0.0 << " "
-         << 0.0;
-
-  const size_t num_of_knots = x_size - 1;
-
-  PiecewiseJerkSpeedProblem path_time_qp(num_of_knots, delta_t_, init_s);
-  auto s_curve_config =
-      planner_open_space_config_.warm_start_config().s_curve_config();
-  path_time_qp.set_weight_ddx(s_curve_config.acc_weight());
-  path_time_qp.set_weight_dddx(s_curve_config.jerk_weight());
-
-  path_time_qp.set_x_bounds(
-      *(std::min_element(std::begin(result->accumulated_s),
-                         std::end(result->accumulated_s))) -
-          10,
-      *(std::max_element(std::begin(result->accumulated_s),
-                         std::end(result->accumulated_s))) +
-          10);
-  path_time_qp.set_dx_bounds(
-      *(std::min_element(std::begin(result->v), std::end(result->v)) - 10),
-      *(std::max_element(std::begin(result->v), std::end(result->v))) + 10);
-  // TODO(QiL): load this from configs
-  path_time_qp.set_ddx_bounds(-4.4, 10.0);
-  path_time_qp.set_dddx_bound(FLAGS_longitudinal_jerk_bound);
-
-  path_time_qp.set_x_ref(s_curve_config.ref_s_weight(), result->accumulated_s);
-  path_time_qp.set_end_state_ref({1.0, 1.0, 0.0}, end_s);
-
-  // Solve the problem
-  if (!path_time_qp.Optimize()) {
-    std::string msg("Piecewise jerk speed optimizer failed!");
-    AERROR << msg;
+  if (result->x.size() != result->y.size() ||
+      result->x.size() != result->phi.size()) {
+    AERROR << "result sizes not equal";
     return false;
   }
 
-  // Extract output
-  result->v.clear();
-  result->accumulated_s.clear();
-  result->accumulated_s = path_time_qp.opt_x();
-  result->v = path_time_qp.opt_dx();
-  result->a = path_time_qp.opt_ddx();
-  result->a.pop_back();
+  // get gear info
+  double init_heading = result->phi.front();
+  const Vec2d init_tracking_vector(result->x[1] - result->x[0],
+                                   result->y[1] - result->y[0]);
+  const double gear =
+      std::abs(common::math::NormalizeAngle(
+          init_heading - init_tracking_vector.Angle())) < M_PI_2;
 
-  // load steering from phi
-  for (size_t i = 0; i + 1 < x_size; ++i) {
-    double discrete_steer = (result->phi[i + 1] - result->phi[i]) *
-                            vehicle_param_.wheel_base() / step_size_;
-    if (result->v[i] > 0.0) {
-      discrete_steer = std::atan(discrete_steer);
-    } else {
-      discrete_steer = std::atan(-discrete_steer);
-    }
-    result->steer.push_back(discrete_steer);
+  // get path lengh
+  size_t path_points_size = result->x.size();
+
+  double accumulated_s = 0.0;
+  result->accumulated_s.clear();
+  auto last_x = result->x.front();
+  auto last_y = result->y.front();
+  for (size_t i = 0; i < path_points_size; ++i) {
+    double x_diff = result->x[i] - last_x;
+    double y_diff = result->y[i] - last_y;
+    accumulated_s += std::sqrt(x_diff * x_diff + y_diff * y_diff);
+    result->accumulated_s.push_back(accumulated_s);
+    last_x = result->x[i];
+    last_y = result->y[i];
+  }
+  // assume static initial state
+  const double init_v = 0.0;
+  const double init_a = 0.0;
+
+  // minimum time speed optimization
+  // TODO(Jinyun): move to confs
+  const double max_forward_v = 2.0;
+  const double max_reverse_v = 1.0;
+  const double max_forward_acc = 2.0;
+  const double max_reverse_acc = 1.0;
+  const double max_acc_jerk = 0.5;
+  const double delta_t = 0.2;
+
+  SpeedData speed_data;
+
+  // TODO(Jinyun): explore better time horizon heuristic
+  const double path_length = result->accumulated_s.back();
+  const double total_t = std::max(gear ? 1.5 *
+                                             (max_forward_v * max_forward_v +
+                                              path_length * max_forward_acc) /
+                                             (max_forward_acc * max_forward_v)
+                                       : 1.5 *
+                                             (max_reverse_v * max_reverse_v +
+                                              path_length * max_reverse_acc) /
+                                             (max_reverse_acc * max_reverse_v),
+                                  10.0);
+
+  const size_t num_of_knots = static_cast<size_t>(total_t / delta_t) + 1;
+
+  PiecewiseJerkSpeedProblem piecewise_jerk_problem(
+      num_of_knots, delta_t, {0.0, std::abs(init_v), std::abs(init_a)});
+
+  // set end constraints
+  std::vector<std::pair<double, double>> x_bounds(num_of_knots,
+                                                  {0.0, path_length});
+
+  const double max_v = gear ? max_forward_v : max_reverse_v;
+  const double max_acc = gear ? max_forward_acc : max_reverse_acc;
+
+  const auto upper_dx = std::fmax(max_v, std::abs(init_v));
+  std::vector<std::pair<double, double>> dx_bounds(num_of_knots,
+                                                   {0.0, upper_dx});
+  std::vector<std::pair<double, double>> ddx_bounds(num_of_knots,
+                                                    {-max_acc, max_acc});
+
+  x_bounds[num_of_knots - 1] = std::make_pair(path_length, path_length);
+  dx_bounds[num_of_knots - 1] = std::make_pair(0.0, 0.0);
+  ddx_bounds[num_of_knots - 1] = std::make_pair(0.0, 0.0);
+
+  // TODO(Jinyun): move to confs
+  std::vector<double> x_ref(num_of_knots, path_length);
+  piecewise_jerk_problem.set_x_ref(10000.0, std::move(x_ref));
+  piecewise_jerk_problem.set_weight_ddx(10.0);
+  piecewise_jerk_problem.set_weight_dddx(10.0);
+  piecewise_jerk_problem.set_x_bounds(std::move(x_bounds));
+  piecewise_jerk_problem.set_dx_bounds(std::move(dx_bounds));
+  piecewise_jerk_problem.set_ddx_bounds(std::move(ddx_bounds));
+  piecewise_jerk_problem.set_dddx_bound(max_acc_jerk);
+
+  // solve the problem
+  if (!piecewise_jerk_problem.Optimize()) {
+    AERROR << "Piecewise jerk speed optimizer failed!";
+    return false;
   }
 
+  // extract output
+  const std::vector<double>& s = piecewise_jerk_problem.opt_x();
+  const std::vector<double>& ds = piecewise_jerk_problem.opt_dx();
+  const std::vector<double>& dds = piecewise_jerk_problem.opt_ddx();
+
+  // assign speed point by gear
+  speed_data.AppendSpeedPoint(s[0], 0.0, ds[0], dds[0], 0.0);
+  const double kEpislon = 1.0e-6;
+  const double sEpislon = 1.0e-6;
+  for (size_t i = 1; i < num_of_knots; ++i) {
+    if (s[i - 1] - s[i] > kEpislon) {
+      ADEBUG << "unexpected decreasing s in speed smoothing at time "
+             << static_cast<double>(i) * delta_t << "with total time "
+             << total_t;
+      break;
+    }
+    speed_data.AppendSpeedPoint(s[i], delta_t * static_cast<double>(i), ds[i],
+                                dds[i], (dds[i] - dds[i - 1]) / delta_t);
+    // cut the speed data when it is about to meet end condition
+    if (path_length - s[i] < sEpislon) {
+      break;
+    }
+  }
+
+  // combine speed and path profile
+  DiscretizedPath path_data;
+  for (size_t i = 0; i < path_points_size; ++i) {
+    common::PathPoint path_point;
+    path_point.set_x(result->x[i]);
+    path_point.set_y(result->y[i]);
+    path_point.set_theta(result->phi[i]);
+    path_point.set_s(result->accumulated_s[i]);
+    path_data.push_back(std::move(path_point));
+  }
+
+  HybridAStartResult combined_result;
+
+  // TODO(Jinyun): move to confs
+  const double kDenseTimeResoltuion = 0.5;
+  const double time_horizon =
+      speed_data.TotalTime() + kDenseTimeResoltuion * 1.0e-6;
+  if (path_data.empty()) {
+    AERROR << "path data is empty";
+    return false;
+  }
+  for (double cur_rel_time = 0.0; cur_rel_time < time_horizon;
+       cur_rel_time += kDenseTimeResoltuion) {
+    common::SpeedPoint speed_point;
+    if (!speed_data.EvaluateByTime(cur_rel_time, &speed_point)) {
+      AERROR << "Fail to get speed point with relative time " << cur_rel_time;
+      return false;
+    }
+
+    if (speed_point.s() > path_data.Length()) {
+      break;
+    }
+
+    common::PathPoint path_point = path_data.Evaluate(speed_point.s());
+
+    combined_result.x.push_back(path_point.x());
+    combined_result.y.push_back(path_point.y());
+    combined_result.phi.push_back(path_point.theta());
+    combined_result.accumulated_s.push_back(path_point.s());
+    if (!gear) {
+      combined_result.v.push_back(-speed_point.v());
+      combined_result.a.push_back(-speed_point.a());
+    } else {
+      combined_result.v.push_back(speed_point.v());
+      combined_result.a.push_back(speed_point.a());
+    }
+  }
+
+  combined_result.a.pop_back();
+
+  // recalc step size
+  path_points_size = combined_result.x.size();
+
+  // load steering from phi
+  for (size_t i = 0; i + 1 < path_points_size; ++i) {
+    double discrete_steer =
+        (combined_result.phi[i + 1] - combined_result.phi[i]) *
+        vehicle_param_.wheel_base() /
+        (combined_result.accumulated_s[i + 1] -
+         combined_result.accumulated_s[i]);
+    discrete_steer =
+        gear ? std::atan(discrete_steer) : std::atan(-discrete_steer);
+    combined_result.steer.push_back(discrete_steer);
+  }
+
+  *result = combined_result;
   return true;
 }
 
@@ -491,6 +580,8 @@ bool HybridAStar::TrajectoryPartition(
   current_traj->y.push_back(y.back());
   current_traj->phi.push_back(phi.back());
 
+  const auto start_timestamp = std::chrono::system_clock::now();
+
   // Retrieve v, a and steer from path
   for (auto& result : *partitioned_result) {
     if (FLAGS_use_s_curve_speed_smooth) {
@@ -505,6 +596,10 @@ bool HybridAStar::TrajectoryPartition(
       }
     }
   }
+
+  const auto end_timestamp = std::chrono::system_clock::now();
+  std::chrono::duration<double> diff = end_timestamp - start_timestamp;
+  ADEBUG << "speed profile total time: " << diff.count() * 1000.0 << " ms.";
   return true;
 }
 
@@ -582,32 +677,29 @@ bool HybridAStar::Plan(
                                                   obstacles_linesegments_vec_);
   ADEBUG << "map time " << Clock::NowInSeconds() - map_time;
   // load open set, pq
-  open_set_.insert(std::make_pair(start_node_->GetIndex(), start_node_));
-  open_pq_.push(
-      std::make_pair(start_node_->GetIndex(), start_node_->GetCost()));
+  open_set_.emplace(start_node_->GetIndex(), start_node_);
+  open_pq_.emplace(start_node_->GetIndex(), start_node_->GetCost());
 
   // Hybrid A* begins
   size_t explored_node_num = 0;
   double astar_start_time = Clock::NowInSeconds();
   double heuristic_time = 0.0;
   double rs_time = 0.0;
-  double start_time = 0.0;
-  double end_time = 0.0;
   while (!open_pq_.empty()) {
     // take out the lowest cost neighboring node
     const std::string current_id = open_pq_.top().first;
     open_pq_.pop();
     std::shared_ptr<Node3d> current_node = open_set_[current_id];
-    // check if a analystic curve could be connected from current
+    // check if an analystic curve could be connected from current
     // configuration to the end configuration without collision. if so, search
     // ends.
-    start_time = Clock::NowInSeconds();
+    const double rs_start_time = Clock::NowInSeconds();
     if (AnalyticExpansion(current_node)) {
       break;
     }
-    end_time = Clock::NowInSeconds();
-    rs_time += end_time - start_time;
-    close_set_.insert(std::make_pair(current_node->GetIndex(), current_node));
+    const double rs_end_time = Clock::NowInSeconds();
+    rs_time += rs_end_time - rs_start_time;
+    close_set_.emplace(current_node->GetIndex(), current_node);
     for (size_t i = 0; i < next_node_num_; ++i) {
       std::shared_ptr<Node3d> next_node = Next_node_generator(current_node, i);
       // boundary check failure handle
@@ -624,9 +716,9 @@ bool HybridAStar::Plan(
       }
       if (open_set_.find(next_node->GetIndex()) == open_set_.end()) {
         explored_node_num++;
-        start_time = Clock::NowInSeconds();
+        const double start_time = Clock::NowInSeconds();
         CalculateNodeCost(current_node, next_node);
-        end_time = Clock::NowInSeconds();
+        const double end_time = Clock::NowInSeconds();
         heuristic_time += end_time - start_time;
         open_set_.emplace(next_node->GetIndex(), next_node);
         open_pq_.emplace(next_node->GetIndex(), next_node->GetCost());

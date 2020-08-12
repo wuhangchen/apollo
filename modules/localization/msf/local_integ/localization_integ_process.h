@@ -60,6 +60,8 @@ class LocalizationIntegProcess {
   void GetResult(IntegState *state, LocalizationEstimate *localization);
   void GetResult(IntegState *state, InsPva *sins_pva,
                  double pva_covariance[9][9]);
+  void GetCorrectedImu(ImuData *imu_data);
+  void GetEarthParameter(InertialParameter *earth_param);
 
   // itegration measure data process
   void MeasureDataProcess(const MeasureData &measure_msg);
@@ -89,12 +91,18 @@ class LocalizationIntegProcess {
   InsPva ins_pva_;
   double pva_covariance_[9][9];
 
+  ImuData corrected_imu_;
+  InertialParameter earth_param_;
+
   std::atomic<bool> keep_running_;
   std::queue<MeasureData> measure_data_queue_;
   int measure_data_queue_size_ = 150;
   std::mutex measure_data_queue_mutex_;
 
   int delay_output_counter_ = 0;
+
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };
 
 }  // namespace msf

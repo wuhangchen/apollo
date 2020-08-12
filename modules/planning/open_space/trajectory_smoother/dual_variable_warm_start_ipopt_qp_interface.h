@@ -23,11 +23,13 @@
 #include <limits>
 #include <vector>
 
+#include <adolc/adolc.h>
+#include <adolc/adolc_sparse.h>
+
+#include <coin/IpTNLP.hpp>
+#include <coin/IpTypes.hpp>
+
 #include "Eigen/Dense"
-#include "IpTNLP.hpp"
-#include "IpTypes.hpp"
-#include "adolc/adolc.h"
-#include "adolc/adolc_sparse.h"
 
 #include "modules/common/configs/proto/vehicle_config.pb.h"
 #include "modules/common/configs/vehicle_config_helper.h"
@@ -43,7 +45,7 @@ namespace planning {
 
 class DualVariableWarmStartIPOPTQPInterface : public Ipopt::TNLP {
  public:
-  explicit DualVariableWarmStartIPOPTQPInterface(
+  DualVariableWarmStartIPOPTQPInterface(
       size_t horizon, double ts, const Eigen::MatrixXd& ego,
       const Eigen::MatrixXi& obstacles_edges_num, const size_t obstacles_num,
       const Eigen::MatrixXd& obstacles_A, const Eigen::MatrixXd& obstacles_b,
@@ -54,6 +56,9 @@ class DualVariableWarmStartIPOPTQPInterface : public Ipopt::TNLP {
 
   void get_optimization_results(Eigen::MatrixXd* l_warm_up,
                                 Eigen::MatrixXd* n_warm_up) const;
+
+  void check_solution(const Eigen::MatrixXd& l_warm_up,
+                      const Eigen::MatrixXd& n_warm_up);
 
   /** Method to return some info about the nlp */
   bool get_nlp_info(int& n, int& m, int& nnz_jac_g, int& nnz_h_lag,
@@ -155,7 +160,7 @@ class DualVariableWarmStartIPOPTQPInterface : public Ipopt::TNLP {
   // states of warm up stage
   Eigen::MatrixXd xWS_;
 
-  double weight_d_;
+  double min_safety_distance_;
 
   //***************    start ADOL-C part ***********************************
   double* obj_lam;

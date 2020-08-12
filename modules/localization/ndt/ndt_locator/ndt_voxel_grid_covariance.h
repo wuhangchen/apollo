@@ -52,15 +52,16 @@
 
 #pragma once
 
-#include <pcl/filters/boost.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/point_types.h>
 #include <map>
 #include <vector>
 
+#include "pcl/filters/boost.h"
+#include "pcl/filters/voxel_grid.h"
+#include "pcl/kdtree/kdtree_flann.h"
+#include "pcl/point_types.h"
+
 #include "cyber/common/log.h"
-#include "modules/common/time/timer.h"
+#include "modules/common/util/perf_util.h"
 
 namespace apollo {
 namespace localization {
@@ -69,6 +70,7 @@ namespace ndt {
 /**@brief Simple structure to hold a centroid, covarince and the number of
  * points in a leaf. */
 struct Leaf {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
   Leaf()
       : nr_points_(0),
         mean_(Eigen::Vector3d::Zero()),
@@ -95,10 +97,13 @@ typedef Leaf *LeafPtr;
 /**@brief Const pointer to VoxelGridCovariance leaf structure */
 typedef const Leaf *LeafConstPtr;
 
-/**@brief A searchable voxel strucure containing the mean and covariance of the
+/**@brief A searchable voxel structure containing the mean and covariance of the
  * data. */
 template <typename PointT>
 class VoxelGridCovariance {
+ public:
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
  protected:
   typedef pcl::PointCloud<PointT> PointCloud;
   typedef boost::shared_ptr<PointCloud> PointCloudPtr;
@@ -200,13 +205,13 @@ class VoxelGridCovariance {
    * structure */
   inline LeafConstPtr GetLeaf(Eigen::Vector3f *p) {
     // Generate index associated with p
-    int ijk0 = static_cast<int>((p->x - map_left_top_corner_(0)) *
+    int ijk0 = static_cast<int>((p->x() - map_left_top_corner_(0)) *
                                 inverse_leaf_size_[0]) -
                min_b_[0];
-    int ijk1 = static_cast<int>((p->y - map_left_top_corner_(1)) *
+    int ijk1 = static_cast<int>((p->y() - map_left_top_corner_(1)) *
                                 inverse_leaf_size_[1]) -
                min_b_[1];
-    int ijk2 = static_cast<int>((p->z - map_left_top_corner_(2)) *
+    int ijk2 = static_cast<int>((p->z() - map_left_top_corner_(2)) *
                                 inverse_leaf_size_[2]) -
                min_b_[2];
 
@@ -247,13 +252,14 @@ class VoxelGridCovariance {
     leaf_size_[1] = ly;
     leaf_size_[2] = lz;
     // Avoid division errors
-    if (leaf_size_[3] == 0) leaf_size_[3] = 1;
-    // Use multiplications instead of divisions
+    if (leaf_size_[3] == 0) {
+      leaf_size_[3] = 1;
+    }  // Use multiplications instead of divisions
     inverse_leaf_size_ = Eigen::Array4f::Ones() / leaf_size_.array();
   }
 
  protected:
-  /**@brief Minimum points contained with in a voxel to allow it to be useable.
+  /**@brief Minimum points contained with in a voxel to allow it to be usable.
    */
   int min_points_per_voxel_;
 
@@ -261,7 +267,7 @@ class VoxelGridCovariance {
    * less than a sufficient number of points). */
   std::map<size_t, Leaf> leaves_;
 
-  /**@brief Point cloud containing centroids of voxels containing atleast
+  /**@brief Point cloud containing centroids of voxels containing at least
    * minimum number of points. */
   PointCloudPtr voxel_centroids_;
 

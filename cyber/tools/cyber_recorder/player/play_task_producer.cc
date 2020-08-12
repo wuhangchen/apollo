@@ -17,6 +17,7 @@
 #include "cyber/tools/cyber_recorder/player/play_task_producer.h"
 
 #include <iostream>
+#include <limits>
 
 #include "cyber/common/log.h"
 #include "cyber/common/time_conversion.h"
@@ -40,7 +41,7 @@ PlayTaskProducer::PlayTaskProducer(const TaskBufferPtr& task_buffer,
       is_initialized_(false),
       is_stopped_(true),
       node_(nullptr),
-      earliest_begin_time_(UINT64_MAX),
+      earliest_begin_time_(std::numeric_limits<uint64_t>::max()),
       latest_end_time_(0),
       total_msg_num_(0) {}
 
@@ -53,7 +54,7 @@ bool PlayTaskProducer::Init() {
   }
 
   if (!ReadRecordInfo() || !UpdatePlayParam() || !CreateWriters()) {
-    is_initialized_.exchange(false);
+    is_initialized_.store(false);
     return false;
   }
 
@@ -98,36 +99,36 @@ bool PlayTaskProducer::ReadRecordInfo() {
     if (!record_reader->IsValid()) {
       continue;
     }
-    if (!record_reader->header().is_complete()) {
+    if (!record_reader->GetHeader().is_complete()) {
       std::cout << "file: " << file << " is not complete." << std::endl;
       continue;
     }
 
     record_readers_.emplace_back(record_reader);
 
-    auto& channel_info = record_reader->channel_info();
+    auto channel_list = record_reader->GetChannelList();
     // loop each channel info
-    for (auto& item : channel_info) {
-      auto& channel_name = item.first;
-      auto& msg_type = item.second.message_type();
+    for (auto& channel_name : channel_list) {
       if (play_param_.black_channels.find(channel_name) !=
           play_param_.black_channels.end()) {
         // minus the black message number from record file header
-        total_msg_num_ -= item.second.message_number();
+        total_msg_num_ -= record_reader->GetMessageNumber(channel_name);
         continue;
       }
+
+      auto& msg_type = record_reader->GetMessageType(channel_name);
       msg_types_[channel_name] = msg_type;
 
       if (!play_param_.is_play_all_channels &&
           play_param_.channels_to_play.count(channel_name) > 0) {
-        total_msg_num_ += item.second.message_number();
+        total_msg_num_ += record_reader->GetMessageNumber(channel_name);
       }
 
-      auto& proto_desc = item.second.proto_desc();
+      auto& proto_desc = record_reader->GetProtoDesc(channel_name);
       pb_factory->RegisterMessage(proto_desc);
     }
 
-    auto& header = record_reader->header();
+    auto& header = record_reader->GetHeader();
     if (play_param_.is_play_all_channels) {
       total_msg_num_ += header.message_number();
     }
@@ -209,7 +210,7 @@ bool PlayTaskProducer::CreateWriters() {
       attr.set_message_type(msg_type);
       auto writer = node_->CreateWriter<message::RawMessage>(attr);
       if (writer == nullptr) {
-        AERROR << "create wirter failed. channel name: " << channel_name
+        AERROR << "create writer failed. channel name: " << channel_name
                << ", message type: " << msg_type;
         return false;
       }
@@ -269,7 +270,7 @@ void PlayTaskProducer::ThreadFunc() {
     }
 
     if (!play_param_.is_loop_playback) {
-      is_stopped_.exchange(true);
+      is_stopped_.store(true);
       break;
     }
     ++loop_num;

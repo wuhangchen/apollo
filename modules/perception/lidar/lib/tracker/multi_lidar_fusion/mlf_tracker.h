@@ -15,6 +15,7 @@
  *****************************************************************************/
 #pragma once
 
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -65,14 +66,14 @@ class MlfTracker {
   // @brief: get next track id
   // @return: track id
   int GetNextTrackId() {
-    if (global_track_id_counter_ == INT_MAX) {
+    if (global_track_id_counter_ == std::numeric_limits<int>::max()) {
       global_track_id_counter_ = 0;
     }
     return global_track_id_counter_++;
   }
 
  protected:
-  // a single whole state filter or seperate state filters
+  // a single whole state filter or separate state filters
   std::vector<MlfBaseFilter*> filters_;
   // global track id
   int global_track_id_counter_ = 0;

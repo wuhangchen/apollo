@@ -1,3 +1,4 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
 load("//tools:cpplint.bzl", "cpplint")
 
 package(default_visibility = ["//visibility:public"])
@@ -16,17 +17,14 @@ cc_library(
         "-O2",
         "-DMODULE_NAME=\\\"localization_visualizer\\\"",
     ],
-    linkopts = [
-        "-lboost_filesystem",
-        "-lboost_system",
-        "-lboost_program_options",
-    ],
     deps = [
         "//cyber",
         "//modules/common/util",
-        "//modules/localization/msf/common/io:localization_msf_common_io",
-        "//modules/localization/msf/local_map/base_map:localization_msf_base_map",
-        "@eigen",
+        "//modules/common/util:eigen_defs",
+        "//modules/localization/msf/common/io:common_io",
+        "//modules/localization/msf/local_pyramid_map/base_map",
+        "@boost",
+        "@opencv//:highgui",
     ],
 )
 
